@@ -34,10 +34,16 @@ all: prepare dist
 prepare: clean
 	mkdir -p $(BUILD_DIR)
 
-clean-compile : clean loader.o screen.o scroller.o main.o
+clean-compile : clean loader.o loop.o print.o screen.o scroller.o main.o
 
 loader.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/loader.s -o $(BUILD_DIR)/loader.o
+
+loop.o: prepare
+	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/loop.s -o $(BUILD_DIR)/loop.o
+
+print.o: prepare
+	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/print.s -o $(BUILD_DIR)/print.o
 
 scroller.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/scroller.s -o $(BUILD_DIR)/scroller.o
@@ -49,9 +55,11 @@ screen.o: prepare
 main.o: prepare
 	$(CC) $(CFLAGS) $(SOURCES_DIR)/main.c -o $(BUILD_DIR)/main.o
 
-main: main.o screen.o loader.o scroller.o
+main: main.o screen.o loader.o loop.o print.o scroller.o
 	$(CC) $(LIBCMINI)/lib/crt0.o \
 	      $(BUILD_DIR)/loader.o \
+	      $(BUILD_DIR)/loop.o \
+	      $(BUILD_DIR)/print.o \
 	      $(BUILD_DIR)/scroller.o \
 		  $(BUILD_DIR)/screen.o \
 		  $(BUILD_DIR)/main.o \

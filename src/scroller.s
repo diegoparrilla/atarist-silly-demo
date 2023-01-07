@@ -1,146 +1,198 @@
-    XDEF	_asm_scroll_cycle
-    XREF    _screen
+    XDEF    _asm_column_rotate
+    XDEF    _scroll_type
+    XREF    _screen_next
+    XREF    _screen_last
     XREF    _font_large_ready
 
                 ; Scrolling section
 
-FONT_LARGE_SIZE equ 800
-COLUMN_SIZE     equ 16
-MAX_WIDTH_SIZE  equ 9
+FONT_LARGE_SIZE equ 400
+COLUMN_SIZE     equ 8
+MAX_WIDTH_SIZE  equ 9      ; MAX_WIDTH_SIZE + 1 chars per line
 
-_asm_scroll_cycle:
-                movem.l d0/a0-a3, -(a7)
+                section code
 
-                move.l  #screen1, d0             ; put screen1 address in d0
-                clr.b   d0                       ; put on 256 byte boundary  
-                move.l  d0, next                 ; store address
-                add.l   #32000, d0               ; next screen area
-                move.l  d0, last                 ; store address
-              
-
-main_loop:
-                move.w  #37, -(sp)               ; wait vbl
-                trap    #14
-                addq.l  #2, sp
-
-                move.l  next, d0
-              
-                clr.b   $ffff820d               ; clear STe extra bit  
-                lsr.l   #8, d0    
-                move.b  d0, $ffff8203           ; put in mid screen address byte
-                lsr.w   #8, d0
-                move.b  d0, $ffff8201           ; put in high screen address byte
-              
-                move.w  #$707, $ff8240
-
-                move.l last, a3                 ; Print in the buffered string       
-
-                bsr.s _asm_print_rot
-
-                move.l  last, a0
-                move.l  next, a1                ; load screens
-                move.l  a1, last                ; and flip them for next time around
-                move.l  a0, next                ; double buffering
-
-                move.w  #$0, $ff8240
-
-                cmp.b    #$39, $fffc02            ; space pressed?
-                bne.b      main_loop                ; if not, repeat main                
-
-                movem.l (a7)+, d0/a0-a3
-                rts
-
-;   Print the string and rotate incrementing the loop
-;   Need to pass:
-;       A3 -> Pointer to the memory screen to print
-_asm_print_rot:
-                movem.l a0, -(a7)
+;   Print the column and scroll to the left
+_asm_column_rotate:
+                moveq #0, d1
                 move.l demo_text_ptr,a0
                 cmp.w #0, a0
-                bne.s ptr_exists
+                bne.s ptr_col_exists
 
                 lea demo_text, a0           ; The ASCII text to demo
                 move.l a0, demo_text_ptr    ; initialize the variable
-ptr_exists:
-                tst.b (a0)
-                bne.s not_end_string
+ptr_col_exists:
+                move.b (a0), d1
+                tst.b d1
+                bne.s not_end_col
 
                 lea demo_text, a0           ; The ASCII text to demo
                 move.l a0, demo_text_ptr    ; initialize the variable
-not_end_string:
-                bsr.s _asm_print_str()
+                move.b (a0), d1
+not_end_col:
+                move.w scroll_shift, d0
+                lsl.w #8, d1
+                or.w d1,d0
+
+                bsr.s _asm_scroll_left
                 
+                move.w scroll_shift, d0
+                addq #1, d0
+                and.w #3, d0
+                move.w d0, scroll_shift
+                
+                tst.b d0
+                bne.s not_increment_yet_char
                 addq #1, a0
                 move.l a0, demo_text_ptr 
-
-                movem.l (a7)+, a0
+not_increment_yet_char:
                 rts
 
-;   Print the whole string
+;   Scroll to the left and print the column in the gap
 ;   Need to pass:
-;       A0 -> Pointer to the string to print on screen
-;       A3 -> Pointer to the memory screen to print
-_asm_print_str:
-                movem.l d4-d7/a0-a6, -(a7)
+;       D0.W.H -> CHAR in ASCII encoding to print
+;       D0.W.L -> Column to print of the char
+_asm_scroll_left:
+
+                move.l  _screen_last, a3
+                move.l  _screen_next, a4
+
+                tst.w _scroll_type
+                bne.s scroll_type_movep   
+
+                bsr.b _asm_scroll_left_by_byte
+                bra.b update_text
+
+scroll_type_movep:
+                bsr _asm_scroll_left_by_byte_movep
+
+update_text:
                 lea ascii_index, a1     ; The translation table from ASCII to local encoding 
                 move.l _font_large_ready, a2    ; The memory address where the font is cooked
 
-                moveq #0, d2                ; Relative X position in bytes of screen memory
-                moveq #MAX_WIDTH_SIZE,d3    ; Number of chars per line
-print_char:
-                clr.w d0                ; Char in local format
-                move.b (a0)+,d0        ; Obtain the char to print in ascii encoding
-                beq.s end_print
-                sub.w #32,d0            ; substract 32 to start the index in 0
-                moveq #0, d1            ; The memory location of the char
-                move.b (a1,d0),d1       ; get the char from ascii to custom encoding
+                move.w d0, d1           ; The memory location of the char
+                and.w #$ff, d0         ; Keep in d0 the column to print
+                lsr.w #8, d1            ; get the char from ascii to custom encoding
+                sub.w #32,d1            ; substract 32 to start the index in 0
+                move.b (a1,d1),d1       ; get the char from ascii to custom encoding
                 mulu.w #FONT_LARGE_SIZE,d1          ; each char 'cost' 800 bytes.
 
                 move.l d1, a6
-                add.l a2, a6
+                add.l a2, a6        ; a6 -> font memory
 
-                move.l d2,a5            
-                add.l a3, a5
+                move.l  _screen_next, a5
+                add.l  #152, a5   
 
-                bsr.s _asm_print_font32x25
-
-                add.w #COLUMN_SIZE, d2            ; Next column
-                dbf d3, print_char    
-
-end_print:
-                movem.l (a7)+, d4-d7/a0-a6 
+                tst.w _scroll_type
+                bne.s print_font_movep
+                jsr _asm_print_font32x25_col
                 rts
 
-;   Print the font 32x25
+print_font_movep:
+                jsr _asm_print_font32x25_col_movep  
+                rts
+
+;   Simple scroll to the left byte by byte
+;   Need to pass:
+;       A3 -> Screen origin address
+;       A4 -> Screen destination address
+_asm_scroll_left_by_byte:
+                rept 500
+                move.b  1(a3), (a4)
+                move.b  3(a3), 2(a4)
+                move.b  5(a3), 4(a4)
+                move.b  7(a3), 6(a4)            ; 8 pixels moved
+                move.b  8(a3), 1(a4)            ; watch carefully!
+                move.b  10(a3), 3(a4)          
+                move.b  12(a3), 5(a4)         
+                move.b  14(a3), 7(a4)           ; first 4 word area filled
+                addq   #8, a3                  ; point to beginning of next line
+                addq   #8, a4                  ; point to beginning of next line
+                endr
+                rts
+
+;   Simple scroll to the left byte by byte using movep
+;   Need to pass:
+;       A3 -> Screen origin address
+;       A4 -> Screen destination address
+_asm_scroll_left_by_byte_movep:
+                rept 500
+                movep.l (1+(REPTN * 8), a3), d6
+                movep.l d6, ((REPTN * 8),a4)
+                movep.l (8+(REPTN * 8), a3), d7
+                movep.l d7, (1+ (REPTN * 8),a4)
+                endr
+                rts
+
+
+;   Print the column of the font 32x25
 ;   Need to pass:
 ;       A5 -> Screen destination address
-;       A6 -> Font source address  
-_asm_print_font32x25:
-                movem.l d0-d7, -(a7)
+;       A6 -> Font source address
+;       D0 -> Column to print (0-3)
+_asm_print_font32x25_col:
+                tst.w d0              ; Column 0
+                beq.s print_font32x25_start
 
-                movem.l  (a6)+, d0-d7
-                movem.l d0-d7, (a5)
+                addq #1, a6               ; Column 1
+                cmp.w #1, d0
+                beq.s print_font32x25_start
 
-                rept 23
-                movem.l  (a6)+, d0-d7
-                movem.l d0-d7, ((REPTN + 1)*160,a5)
+                addq #7, a6               ; Column 2
+                cmp.w #2, d0
+                beq.s print_font32x25_start
+
+                addq #1, a6               ; Column 3
+
+print_font32x25_start:
+                move.b  (a6), 1(a5)
+                move.b  2(a6), 3(a5)
+                move.b  4(a6), 5(a5)
+;                move.b  6(a6), 7(a5)
+                lea (16,a6), a6
+
+                rept 24
+                move.b  (a6), (1 + (REPTN + 1)*160, a5)
+                move.b  2(a6),(3 + (REPTN + 1)*160, a5)
+                move.b  4(a6),(5 + (REPTN + 1)*160, a5)
+;                move.b  6(a6),(7 + (REPTN + 1)*160, a5)
+                lea (16,a6), a6
                 endr
+                rts
 
-                movem.l (a7)+, d0-d7
+;   Print the column of the font 32x25 with movep
+;   Need to pass:
+;       A5 -> Screen destination address
+;       A6 -> Font source address
+;       D0 -> Column to print (0-3)
+_asm_print_font32x25_col_movep:
+                tst.w d0              ; Column 0
+                beq.s print_font32x25_start_movep
+
+                addq #1, a6               ; Column 1
+                cmp.w #1, d0
+                beq.s print_font32x25_start_movep
+
+                addq #7, a6               ; Column 2
+                cmp.w #2, d0
+                beq.s print_font32x25_start_movep
+
+                addq #1, a6               ; Column 3
+print_font32x25_start_movep:
+                rept 25
+                movep.l ((REPTN*16),a6), d6
+                movep.l d6, (1 + (REPTN * 160),a5)
+                endr
                 rts
 
                 section bss
-print_dst:      ds.l 1  ; Memory address to print the char
-print_src:      ds.l 1  ; Memory address of the char to print
-demo_text_ptr   ds.l 1  ; Memory address of the current text to print
+demo_text_ptr   ds.l 1  ; Memory address of the current text to scroll left
 
                 ds.b    256
-screen1         ds.b    32000
-screen2         ds.b    32000
+scroll_shift    dc.w    0
+_scroll_type    dc.w    0   ; 0 = byte by byte, 1 = movep
 
                 section data
-next            dc.l   0
-last            dc.l   0
 
 ascii_index:                                                   ; Index table to translate ASCII to chars
                 dc.b 47, 26, 40, 47,47, 47, 47, 46, 41, 42     ; SPACE, !, ", #, $, %, &, ', (, )
@@ -150,5 +202,5 @@ ascii_index:                                                   ; Index table to 
                 dc.b 7, 8, 9, 10, 11, 12, 13, 14, 15, 16       ; H, I, J, K, L, M, N, O, P, Q
                 dc.b 17, 18, 19, 20, 21, 22, 23, 24, 25        ; R, S, T, U, V, W, X, Y, Z
 
-demo_text:      dc.b "BIENVENIDOS A LA DEMOSCENE! HOY TE INVITAMOS A DISFRUTAR DE NUESTRA ÚLTIMA CREACIÓN: UN SCROLL DE DEMOSCENE LLENO DE COLORES Y EFECTOS VISUALES QUE TE DEJARÁN SIN ALIENTO.",0
+demo_text:      dc.b "ESTA ES UNA PRUEBA DE SCROLL HORIZONTAL. VAMOS A VER SI FUNCIONA COMO ESPERAMOS.",0
 
