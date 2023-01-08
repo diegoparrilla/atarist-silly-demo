@@ -10,6 +10,27 @@ FONT_LARGE_SIZE equ 400
 COLUMN_SIZE     equ 8
 MAX_WIDTH_SIZE  equ 9      ; MAX_WIDTH_SIZE + 1 chars per line
 
+; Blitter section
+HALFTONE_RAM        equ $00
+SRC_ADDR            equ $24
+SRC_X_INCREMENT     equ $20
+SRC_Y_INCREMENT     equ $22
+ENDMASK1_REG        equ $28
+ENDMASK2_REG        equ $2A
+ENDMASK3_REG        equ $2C
+DEST_ADDR           equ $32
+DEST_X_INCREMENT    equ $2E
+DEST_Y_INCREMENT    equ $30
+BLOCK_X_COUNT       equ $36
+BLOCK_Y_COUNT       equ $38
+BLITTER_HOP         equ $3A
+BLITTER_OPERATION   equ $3B
+BLITTER_CONTROL_REG equ $3C
+BLITTER_SKEW        equ $3D
+
+M_LINE_BUSY           equ  7
+F_LINE_BUSY           equ  %10000000
+
                 section code
 
 ;   Print the column and scroll to the left
@@ -59,12 +80,17 @@ _asm_scroll_left:
 
                 tst.w _scroll_type
                 bne.s scroll_type_movep   
-
                 bsr.b _asm_scroll_left_by_byte
                 bra.b update_text
 
 scroll_type_movep:
-                bsr _asm_scroll_left_by_byte_movep
+                cmp.w #1, _scroll_type
+                bne.s scroll_type_blitter
+                jsr _asm_scroll_left_by_byte_movep
+                bra.b update_text
+
+scroll_type_blitter:
+                jsr _asm_scroll_left_by_byte_blitter
 
 update_text:
                 lea ascii_index, a1     ; The translation table from ASCII to local encoding 
@@ -81,15 +107,9 @@ update_text:
                 add.l a2, a6        ; a6 -> font memory
 
                 move.l  _screen_next, a5
-                add.l  #152, a5   
+                lea  (152,a5), a5   
 
-                tst.w _scroll_type
-                bne.s print_font_movep
-                jsr _asm_print_font32x25_col
-                rts
-
-print_font_movep:
-                jsr _asm_print_font32x25_col_movep  
+                jsr _asm_print_font32x25_col  
                 rts
 
 ;   Simple scroll to the left byte by byte
@@ -101,11 +121,11 @@ _asm_scroll_left_by_byte:
                 move.b  1(a3), (a4)
                 move.b  3(a3), 2(a4)
                 move.b  5(a3), 4(a4)
-                move.b  7(a3), 6(a4)            ; 8 pixels moved
+;                move.b  7(a3), 6(a4)            ; 8 pixels moved
                 move.b  8(a3), 1(a4)            ; watch carefully!
                 move.b  10(a3), 3(a4)          
                 move.b  12(a3), 5(a4)         
-                move.b  14(a3), 7(a4)           ; first 4 word area filled
+;                move.b  14(a3), 7(a4)           ; first 4 word area filled
                 addq   #8, a3                  ; point to beginning of next line
                 addq   #8, a4                  ; point to beginning of next line
                 endr
@@ -123,6 +143,45 @@ _asm_scroll_left_by_byte_movep:
                 movep.l d7, (1+ (REPTN * 8),a4)
                 endr
                 rts
+
+;   Simple scroll to the left byte by byte using BLITTER
+;   Need to pass:
+;       A3 -> Screen origin address
+;       A4 -> Screen destination address
+_asm_scroll_left_by_byte_blitter:
+
+
+        lea  $FF8A00,a5          ; a5-> BLiTTER register block
+
+        move.w #$8, SRC_X_INCREMENT(a5) ; source X increment. Jump 3 (2 + 2 + 2) planes.
+        move.w #8, SRC_Y_INCREMENT(a5) ; source Y increment. Increase the 4 planes.
+        move.w #8, DEST_X_INCREMENT(a5) ; dest X increment. Jump 3 (2 + 2 +2) planes.
+        move.w #8, DEST_Y_INCREMENT(a5) ; dest Y increment. Increase the 4 planes.
+        move.w #20, BLOCK_X_COUNT(a5) ; block X count. It seems don't need to reinitialize every bitplane.
+        move.w #$FFFF, ENDMASK1_REG(a5) ; endmask1 register
+        move.w #$FFFF, ENDMASK2_REG(a5) ; endmask2 register
+        move.w #$FF00, ENDMASK3_REG(a5) ; endmask3 register. The mask should covers the char column. 
+        move.b #$2, BLITTER_HOP(a5) ; blitter HOP operation. Copy src to dest, 1:1 operation.
+        move.b #$3, BLITTER_OPERATION(a5) ; blitter operation. Copy src to dest, replace copy.
+        move.b #%11001000, BLITTER_SKEW(a5) ; blitter skew: -8 pixels and NFSR and FXSR.
+
+        moveq #$2, d3     ; 3 Bitplanes
+bitplanes:
+        move.l a3, SRC_ADDR(a5)  ; source address
+        move.l a4, DEST_ADDR(a5) ; destination address
+        move.w #25, BLOCK_Y_COUNT(a5) ; block Y count. This one must be reinitialized every bitplane
+        or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a5)    ; << START THE BLITTER >>
+     restart:
+          bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a5)       ; Restart BLiTTER and test the BUSY
+          nop                      ; flag state.  The "nop" is executed
+          bne  restart             ; prior to the BLiTTER restarting.
+                                   ; Quit if the BUSY flag was clear.  
+
+        addq.w #2, a3               ; Next bitplane src
+        addq.w #2, a4               ; Next bitplane dest
+        dbf d3, bitplanes
+
+        rts
 
 
 ;   Print the column of the font 32x25
@@ -189,10 +248,10 @@ print_font32x25_start_movep:
 demo_text_ptr   ds.l 1  ; Memory address of the current text to scroll left
 
                 ds.b    256
-scroll_shift    dc.w    0
-_scroll_type    dc.w    0   ; 0 = byte by byte, 1 = movep
 
                 section data
+scroll_shift:   dc.w    0
+_scroll_type:   dc.w    0   ; 0 = byte by byte, 1 = movep
 
 ascii_index:                                                   ; Index table to translate ASCII to chars
                 dc.b 47, 26, 40, 47,47, 47, 47, 46, 41, 42     ; SPACE, !, ", #, $, %, &, ', (, )

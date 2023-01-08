@@ -72,13 +72,19 @@ main_loop:
 
 check_key2:
                 cmp.b    #$03, $fffc02            ; Key 2 pressed?
-                bne.b    check_space              ; Check next key
+                bne.b    check_key3              ; Check next key
                 move.w #$1, _scroll_type
-                bsr print_scroll_8_movep_copy
+                bsr.s print_scroll_8_movep_copy
 
-check_space:
+check_key3:
+                cmp.b    #$04, $fffc02            ; Key 2 pressed?
+                bne.b    check_escape              ; Check next key
+                move.w #$2, _scroll_type
+                bsr.s print_scroll_8_blitter_copy
+
+check_escape:
                 cmp.b    #$01, $fffc02            ; ESC pressed?
-                bne.b      main_loop                ; if not, repeat main                
+                bne      main_loop                ; if not, repeat main                
 
                 movem.l (a7)+, d0-d7/a0-a6
                 rts
@@ -109,6 +115,19 @@ print_scroll_8_movep_copy:
 
                 rts
 
+;   Print the string informing of scrolling blitter copy mode
+print_scroll_8_blitter_copy:
+                lea print_scroll_8_blitter_str, a0  ; The ASCII text to print
+                move.l _screen_next, a3    ; The screen address
+                lea (175*160,a3), a3      ; The bottom of the screen
+                bsr _asm_print_str
+ 
+                move.l _screen_last, a3    ; The screen address
+                lea (175*160,a3), a3      ; The bottom of the screen
+                bsr _asm_print_str
+
+                rts
+
                 section bss
                 ds.b    256
 screen1         ds.b    32000
@@ -120,3 +139,4 @@ _screen_last            dc.l   0
 
 print_scroll_8_byte_str: dc.b   'BYTE COPY',0
 print_scroll_8_movep_str: dc.b  'MOVEP    ',0
+print_scroll_8_blitter_str: dc.b  'BLITTER  ',0
