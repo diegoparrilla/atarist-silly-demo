@@ -90,6 +90,8 @@ void run()
     printf("font_large_ready: %p\r\n", font_large_ready);
 
     printf("\r\n");
+    printf("asm_main_loop: %p\r\n", asm_main_loop);
+    printf("\r\n");
     printf("ESC to exit\r\n");
     printf("Press 1 to 10 for different effects\r\n");
     getchar();
