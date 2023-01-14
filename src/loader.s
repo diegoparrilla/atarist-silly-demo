@@ -85,7 +85,7 @@ _asm_font_small:
 _asm_c23_logo:
                 incbin  resources/C23.PI1
 
-NUMBER_OF_ROTATIONS         equ 16
+NUMBER_OF_ROTATIONS         equ 1
 FONT_LARGE_SIZE_WORDS       equ 400
 NUMBER_FONTS                equ 48
 _asm_font_large_ready:

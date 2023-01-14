@@ -74,6 +74,7 @@ void run()
 {
 
     __uint16_t palette[16];
+    __uint16_t palette_simple[16];
     clock_t start;
     float cpu_time_used;
 
@@ -89,6 +90,22 @@ void run()
     printf("c23_logo_ptr: %p\r\n", c23_logo_ptr);
     printf("font_large_ready: %p\r\n", font_large_ready);
 
+    GetDegasPalette((__uint16_t *)font_large_ptr, palette);
+    for (int i = 0; i < 8; i++)
+    {
+        palette_simple[i] = palette[i];
+    }
+    for (int i = 0; i < 8; i++)
+    {
+        palette_simple[i + 8] = palette[i];
+    }
+    palette_simple[8] = 0x0222; // Change the color of the tile
+
+    for (int i = 0; i < 16; i++)
+    {
+        printf("palette[%d]: %x\r\n", i, palette_simple[i]);
+    }
+
     printf("\r\n");
     printf("asm_main_loop: %p\r\n", asm_main_loop);
     printf("\r\n");
@@ -99,8 +116,7 @@ void run()
     ScreenContext *screenContext = malloc(sizeof(ScreenContext));
     initScreenContext(screenContext);
 
-    GetDegasPalette((__uint16_t *)font_large_ptr, palette);
-    initLowResolution(palette);
+    initLowResolution(palette_simple);
 
     screen = screenContext->videoAddress;
 

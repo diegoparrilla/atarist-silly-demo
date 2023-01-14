@@ -109,7 +109,7 @@ update_text:
                 move.l  _screen_next, a5
                 lea  (152,a5), a5   
 
-                jsr _asm_print_font32x25_col  
+                jsr _asm_print_font32x25_col
                 rts
 
 ;   Simple scroll to the left byte by byte
@@ -140,7 +140,8 @@ _asm_scroll_left_by_byte_movep:
                 movep.l (1+(REPTN * 8), a3), d6
                 movep.l d6, ((REPTN * 8),a4)
                 movep.l (8+(REPTN * 8), a3), d7
-                movep.l d7, (1+ (REPTN * 8),a4)
+                movep.l d7, (1+ (REPTN * 8),a4)        
+
                 endr
                 rts
 
@@ -261,5 +262,5 @@ ascii_index:                                                   ; Index table to 
                 dc.b 7, 8, 9, 10, 11, 12, 13, 14, 15, 16       ; H, I, J, K, L, M, N, O, P, Q
                 dc.b 17, 18, 19, 20, 21, 22, 23, 24, 25        ; R, S, T, U, V, W, X, Y, Z
 
-demo_text:      dc.b "ESTA ES UNA PRUEBA DE SCROLL HORIZONTAL. VAMOS A VER SI FUNCIONA COMO ESPERAMOS.",0
+demo_text:      dc.b "THIS IS THE ATARI ST SILLY DEMO. A SIMPLE DEMO ONLY TO REFRESH MY M68K CODING SKILLS AND WASTE TIME DOING USELESS STUFF THAT NOBODY CARES...   ",0
 

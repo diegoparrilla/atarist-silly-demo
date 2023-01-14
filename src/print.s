@@ -3,7 +3,7 @@
     XREF    _font_large_ready
 
 FONT_LARGE_SIZE equ 400
-LINE_SIZE       equ 22     ; Number of lines of the char - 1
+LINE_SIZE       equ 24     ; Number of lines of the char - 1
 COLUMN_SIZE     equ 16     ; Number of bytes per char line      
 MAX_WIDTH_SIZE  equ 9      ; MAX_WIDTH_SIZE + 1 chars per line
 
@@ -40,7 +40,7 @@ not_end_string:
 ;       A0 -> Pointer to the string to print on screen
 ;       A3 -> Pointer to the memory screen to print
 _asm_print_str:
-                movem.l d4-d7/a0-a6, -(a7)
+                movem.l d0-d7/a0-a6, -(a7)
                 lea ascii_index, a1     ; The translation table from ASCII to local encoding 
                 move.l _font_large_ready, a2    ; The memory address where the font is cooked
 
@@ -67,7 +67,7 @@ print_char:
                 dbf d3, print_char    
 
 end_print:
-                movem.l (a7)+, d4-d7/a0-a6 
+                movem.l (a7)+, d0-d7/a0-a6 
                 rts
 
 ;   Print the font 32x25
@@ -77,18 +77,32 @@ end_print:
 _asm_print_font32x25:
                 movem.l d0-d7, -(a7)
 
-                movem.l  (a6)+, d0-d7
-                movem.l d0-d3, (a5)
-                movem.l d4-d7, (160,a5)
+;                movem.l  (a6)+, d0-d7
+;                movem.l d0-d3, (a5)
+                movem.l  (a6)+, d0-d3
+                move.l d0, (a5)
+                swap d1
+                move.w d1, 4(a5)
+                move.l d2, 8(a5)
+                swap d3
+                move.w d3, 12(a5)
 
-                rept LINE_SIZE / 2
-                movem.l  (a6)+, d0-d7
-                movem.l d0-d3, ((REPTN + 1)*320,a5)
-                movem.l d4-d7, (160 + (REPTN + 1)*320,a5)
-                endr
+                rept LINE_SIZE - 1
+;                movem.l  (a6)+, d0-d7
+;                movem.l d0-d3, ((REPTN + 1)*320,a5)
+;                movem.l d4-d7, (160 + (REPTN + 1)*320,a5)
 
                 movem.l  (a6)+, d0-d3
-                movem.l d0-d3, (3840,a5)
+                move.l d0, ((REPTN + 1)*160,a5)
+                swap d1
+                move.w d1, (4 +(REPTN + 1)*160,a5)
+                move.l d2, (8 + (REPTN + 1)*160,a5)
+                swap d3
+                move.w d3, (12 + (REPTN + 1)*160,a5)
+                endr
+
+;                movem.l  (a6)+, d0-d3
+;                movem.l d0-d3, (3840,a5)
 
                 movem.l (a7)+, d0-d7
                 rts

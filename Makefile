@@ -5,8 +5,8 @@ DIST_DIR = ./dist
 EXE = test.tos
 
 # VASM PARAMETERS
-VASMFLAGS=-Faout -quiet -x -m68000 -spaces -showopt
-VASM = stcmd vasm
+VASMFLAGS=-Faout -quiet -x -m68000 -spaces -showopt -devpac
+VASM = stcmd vasm 
 VLINK = stcmd vlink
 
 # LIBCMINI PARAMETERS
@@ -34,7 +34,7 @@ all: prepare dist
 prepare: clean
 	mkdir -p $(BUILD_DIR)
 
-clean-compile : clean loader.o loop.o print.o screen.o scroller.o main.o
+clean-compile : clean loader.o loop.o print.o rasters.o screen.o scroller.o tiles.o main.o
 
 loader.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/loader.s -o $(BUILD_DIR)/loader.o
@@ -45,8 +45,14 @@ loop.o: prepare
 print.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/print.s -o $(BUILD_DIR)/print.o
 
+rasters.o: prepare
+	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/rasters.s -o $(BUILD_DIR)/rasters.o
+
 scroller.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/scroller.s -o $(BUILD_DIR)/scroller.o
+
+tiles.o: prepare
+	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/tiles.s -o $(BUILD_DIR)/tiles.o
 
 # All C files
 screen.o: prepare
@@ -55,13 +61,15 @@ screen.o: prepare
 main.o: prepare
 	$(CC) $(CFLAGS) $(SOURCES_DIR)/main.c -o $(BUILD_DIR)/main.o
 
-main: main.o screen.o loader.o loop.o print.o scroller.o
+main: main.o screen.o loader.o loop.o print.o rasters.o  scroller.o tiles.o
 	$(CC) $(LIBCMINI)/lib/crt0.o \
 	      $(BUILD_DIR)/loader.o \
 	      $(BUILD_DIR)/loop.o \
 	      $(BUILD_DIR)/print.o \
+	      $(BUILD_DIR)/rasters.o \
 	      $(BUILD_DIR)/scroller.o \
 		  $(BUILD_DIR)/screen.o \
+		  $(BUILD_DIR)/tiles.o \
 		  $(BUILD_DIR)/main.o \
 		  -o $(BUILD_DIR)/test.tos $(LINKFLAGS);
 
