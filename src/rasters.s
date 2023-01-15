@@ -1,7 +1,5 @@
-    XDEF    _asm_setup_hblank
     XDEF    _asm_setup_vblank
-    XDEF   _asm_restore_hblank
-    XDEF   _asm_restore_vblank
+    XDEF    _asm_vbl_counter
 
                 ; Rasters section
 TIMERB_COUNT_EVERY_SCAN_LINE    EQU 1
@@ -11,39 +9,29 @@ COLOR_ITEM_PALETTE_SIZE         EQU 2              ; 2 bytes (1 word) per color
 
                 section code
 
-
-_asm_setup_hblank:
-;                move.l $120, hblank_routine_old   ; save the old timer b routine
-                clr.b   $fffffa1b                ; disable timer b
-                move.l  #timer_b_routine, $120           ; move in my timer b address
-                bset    #0, $fffffa07            ; turn on timer b in enable a
-                bset    #0, $fffffa13            ; turn on timer b in mask a
-                move.b  #TIMERB_COUNT_EVERY_SCAN_LINE, $fffffa21            ; number of counts
-                move.b  #TIMERB_EVENT_COUNT, $fffffa1b            ; set timer b to event count 
-                rts
-
-_asm_restore_hblank:
-;                move.l hblank_routine_old, $120           ; move in my timer b address
-                clr.b   $fffffa1b                ; disable timer b
-                rts
-
 _asm_setup_vblank:
-                clr.w rotate_raster
-                move.l $70, vblank_routine_old+2   ; save the old vblank routine
-                move.l #vblank_routine, $70           ; move in my vblank address
-                rts
-
-_asm_restore_vblank:
-                move.l vblank_routine_old+2, $70           ; move in my vblank address
+                clr.w  _asm_vbl_counter         ; clear the vbl counter before starting vblank   
+                clr.w rotate_raster             ; init the rotate raster
+                lea vblank_routine, a1          ; get the address of the vblank routine
+                lea timer_b_routine, a2         ; get the address of the timer b routine
                 rts
 
 vblank_routine:
-                clr.w  line_counter              ; clear the line counter before starting vblank
-                addq #2, rotate_raster           ; increment the raster
+                addq.w #1,  _asm_vbl_counter                        ; set the vbl counter when the vblank starts   
+                clr.w  line_counter                                 ; clear the line counter before starting vblank
+                addq #2, rotate_raster                              ; increment the raster
                 and.w #(TILE_COLOR_PALETTE * 2) - 1, rotate_raster
-vblank_routine_old:
-                dc.w $4EF9                       ; The vasm stubbornly optimizes the JMP. This is a workaround
-                dc.l $0                           ; placeholder for the old vblank routine
+
+                ;Start up Timer B each VBL
+                move.w	#$2700,sr			                        ;Stop all interrupts
+                clr.b	$fffffa1b.w			                        ;Timer B control (stop)
+                bset	#0,$fffffa07.w			                    ;turn on timer b in enable a
+                bset	#0,$fffffa13.w			                    ;turn on timer b in mask a
+                move.b	#TIMERB_COUNT_EVERY_SCAN_LINE,$fffffa21.w   ;Timer B data (number of scanlines to next interrupt)
+                bclr	#3,$fffffa17.w			                    ;Automatic end of interrupt
+                move.b	#TIMERB_EVENT_COUNT,$fffffa1b.w			    ;Timer B control (event mode (HBL))
+                move.w	#$2300,sr			                        ;Interrupts back on
+                rte
 
 timer_b_routine:
                 movem.l d0-d1/a0, -(a7)
@@ -57,14 +45,13 @@ timer_b_routine:
                 move.w (a0), $ff8250             ; set the color
                 addq.w #COLOR_ITEM_PALETTE_SIZE, d0                    ; increment the line counter by a word
                 move d0, line_counter
-                bclr    #0, $fffffa0f            ; NEVER FORGET THIS. Tell computer we are done with interrupt
                 movem.l (a7)+, d0-d1/a0
                 rte
 
                 section bss
-hblank_routine_old: ds.l 1
 line_counter:       ds.w 1
 rotate_raster:      ds.w 1
+_asm_vbl_counter    ds.w 1
 
                 section data align 2
 rainbow_colors: 

@@ -3,13 +3,13 @@
     XDEF    _screen_next
     XDEF    _screen_base
     XDEF    _BUFFER_NUMBERS
+    XREF    _asm_save_state
+    XREF    _asm_restore_state
     XREF    _asm_column_rotate
+    XREF    _asm_vbl_counter
     XREF    _asm_print_str
     XREF    _asm_draw_tiles
-    XREF    _asm_setup_hblank
     XREF    _asm_setup_vblank
-    XREF    _asm_restore_hblank
-    XREF    _asm_restore_vblank
     XREF    _scroll_type
 
                 ; Scrolling section
@@ -49,36 +49,32 @@ save_screen_addr:
 _asm_main_loop:
                 movem.l d0-d7/a0-a6, -(a7)
 
-                bsr.s rotate_screens        ; rotate the screens
+                bsr.s rotate_screens            ; rotate the screen buffers for the first time
+                move.w #$0, _scroll_type        ; default large text scrolling type
+                bsr print_scroll_8_byte_copy    ; print the scrolling type
 
-;                move.w  #7, -(a7)              ; wait for a keypress
-;                trap    #1                     ; call gemdos
-;                addq.l  #2, a7                 ; clear up stack
-              
-                bsr _asm_setup_hblank
+                jsr _asm_draw_tiles             ; draw the tiles on the buffers
+
+                ; The setup_vblank only clear the initial raster and returns
+                ; the addresses of the vblank and timer B (HBL) routines in a1 and a2
+                ; respectively. The save_state routine saves the current state of the
+                ; ST and the restore_state routine restores it. It expects the 
+                ; addresses of the vblank and timer B routines in a1 and a2 respectively.
                 bsr _asm_setup_vblank
+                bsr _asm_save_state
 
-                move.w  #37, -(sp)               ; wait vbl
-                trap    #14
-                addq.l  #2, sp
-
-                move.l  _screen_next, d0
-
+                move.l  _screen_last, d0        ; set the next screen address
                 clr.b   $ffff820d               ; clear STe extra bit  
                 lsr.l   #8, d0    
                 move.b  d0, $ffff8203           ; put in mid screen address byte
                 lsr.w   #8, d0
                 move.b  d0, $ffff8201           ; put in high screen address byte
 
-                move.w #$0, _scroll_type
-                bsr print_scroll_8_byte_copy
-
-                jsr _asm_draw_tiles
 
 main_loop:
-                move.w  #37, -(sp)               ; wait vbl
-                trap    #14
-                addq.l  #2, sp
+            	tst.w	_asm_vbl_counter    ; Wait for the VBL
+		        beq.s	main_loop           ; YOU NOT SHALL PASS!!! ...until the VBL changes the state
+		        clr.w	_asm_vbl_counter    ; Clear the VBL counter
 
                 move.l  _screen_next, d0
               
@@ -96,10 +92,7 @@ main_loop:
 
                 move.w  #$000, $ff8240
 
-;                move.w  #7, -(a7)              ; wait for a keypress
-;                trap    #1                     ; call gemdos
-;                addq.l  #2, a7                 ; clear up stack
-
+                ; Test keys
                 cmp.b    #$02, $fffc02            ; Key 1 pressed?
                 bne.b    check_key2               ; Check next key
                 move.w #$0, _scroll_type
@@ -121,8 +114,7 @@ check_escape:
                 cmp.b    #$01, $fffc02            ; ESC pressed?
                 bne      main_loop                ; if not, repeat main                
 
-                bsr _asm_restore_hblank
-                bsr _asm_restore_vblank
+                bsr _asm_restore_state
 
                 movem.l (a7)+, d0-d7/a0-a6
                 rts
@@ -161,9 +153,6 @@ print_next_buffer:
                 movem.l (a7)+, d0-d1/a3
 
                 rts
-
-
-
 
                 section bss
                 ds.b    256

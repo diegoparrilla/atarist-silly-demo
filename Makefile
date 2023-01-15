@@ -34,7 +34,10 @@ all: prepare dist
 prepare: clean
 	mkdir -p $(BUILD_DIR)
 
-clean-compile : clean loader.o loop.o print.o rasters.o screen.o scroller.o tiles.o main.o
+clean-compile : clean init.o loader.o loop.o print.o rasters.o screen.o scroller.o tiles.o main.o
+
+init.o: prepare
+	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/init.s -o $(BUILD_DIR)/init.o
 
 loader.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/loader.s -o $(BUILD_DIR)/loader.o
@@ -61,8 +64,9 @@ screen.o: prepare
 main.o: prepare
 	$(CC) $(CFLAGS) $(SOURCES_DIR)/main.c -o $(BUILD_DIR)/main.o
 
-main: main.o screen.o loader.o loop.o print.o rasters.o  scroller.o tiles.o
+main: main.o screen.o init.o loader.o loop.o print.o rasters.o  scroller.o tiles.o
 	$(CC) $(LIBCMINI)/lib/crt0.o \
+	      $(BUILD_DIR)/init.o \
 	      $(BUILD_DIR)/loader.o \
 	      $(BUILD_DIR)/loop.o \
 	      $(BUILD_DIR)/print.o \

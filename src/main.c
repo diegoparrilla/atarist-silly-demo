@@ -115,7 +115,6 @@ void run()
 
     ScreenContext *screenContext = malloc(sizeof(ScreenContext));
     initScreenContext(screenContext);
-
     initLowResolution(palette_simple);
 
     screen = screenContext->videoAddress;
