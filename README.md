@@ -44,3 +44,52 @@ make
 
 5. Run the demo!
 
+## Resources 
+
+This "Resources" section contains a list of helpful materials for learning how to build a demo for the Atari ST. This section include tutorials, documentation, and sample code that can assist in the development of a demo for the Atari ST. These materials are intended for developers with varying levels of experience, mostly experienced programmers.
+
+It is important to note that the Atari ST has a unique architecture and programming environment, so it is essential to familiarize yourself with the platform before diving into demo development.
+
+Please feel free to contribute to this list by submitting pull requests with additional resources that you have found helpful in your own Atari ST demo development journey.
+
+### Assembly Language
+
+* [The Atari ST MC68000 Assembly Language Tutorials](https://nguillaumin.github.io/perihelion-m68k-tutorials/index.html) - A series of tutorials on the Atari ST MC68000 Assembly Language. The tutorials are written by Nicolas Guillaumin, and they are available online for free. The tutorials are intended for beginners, but they are also useful for experienced programmers. The tutorials explains some of the unique features of the Atari ST, such as the VBL interrupt, the DMA controller, and sound subsystem. The tutorials also include a series of sample programs that can be used as a starting point for your own projects.
+
+* [MarkeyJester’s Motorola 68000 Beginner’s Tutorial](https://mrjester.hapisan.com/04_MC68/) - A series of tutorials on the Motorola 68000 Assembly Language. The tutorials are written by MarkeyJester, and they are available online for free. The tutorials are intended for beginners, but they are also useful for experienced programmers who want to learn more about the Motorola 68000.
+
+* [VASM manual](http://sun.hasenbraten.de/vasm/release/vasm.html) - The official documentation of the VASM assembler. The VASM assembler is the assembler used in the [atarist-toolkit-docker](https://github.com/diegoparrilla/atarist-toolkit-docker). The documentation is very detailed and it is a great resource for learning how to use the VASM assembler.
+
+* [M68000 Peephole optimizations](https://gist.github.com/flamewing/ad17bf22875be36ad4ae26f159a94f8b) - A list of M68000 of quick optimizations to keep in mind beating the vertical blank. The list is very useful for optimizing your code.
+
+### Atari ST/STE hardware
+
+* [Smooth horizontal scrolling on the STE](http://alive.atari.org/alive12/ste_hwsc.php) - A popular tutorial by Paradox about how to implement smooth horizontal scrolling on the Atari STe. The tutorial explains how to use the DMA controller to implement smooth horizontal scrolling. The tutorial is part of the [Alive 12](http://alive.atari.org/alive12/) magazine, easier to read online compared with other Paradox tutorials sources.
+
+* [Atari STE FAQS](http://alive.atari.org/alive6/ste.php) - A collection of FAQs about how to tame the Atari STe hardware. Another Paradox tutorial. 
+
+* [Programming the blitter](http://s390174849.online.de/ray.tscc.de/blitter.htm) - A tutorial about how to use the blitter of the Atari ST. The tutorial is part of a larger set of tutorials about the Atari ST programming. 
+
+* [4 bitplanes de l'Atari ST](https://www.fxjavadevblog.fr/atari-st-4-bitplanes/) - A French tutorial about how to use the 4 bitplanes of the Atari ST. The tutorial is written by FXJavaDevBlog. Probably the best tutorial about the 4 bitplanes of the Atari ST, something you need to master if you want to create a demo for the Atari ST.
+
+* [Advanced raster interrupt programming](http://thethalionsource.w4f.eu/Artikel/Rasters.htm) - A tutorial about how to use the raster interrupts of the Atari ST. Written by Udo of TEX. Learning from the masters!
+
+### Demo creation
+
+* [Atari ST source code repository](https://github.com/ggnkua/Atari_ST_Sources) - A GitHub repo with a lot of code samples for the Atari ST, STE, Mega ST, TT and Falcon. The code samples are written in C, 68K assembler, and GFA Basic. The code samples are intended for beginners, but they are also useful for experienced programmers.
+
+* [Dead Hackers Society demo creation sources](https://dhs.nu/files.php?t=democreation) - A collection of sources for demo creation. A must!
+
+* [Reservoir Gods library](https://github.com/ReservoirGods/GODLIB) - A library for the Atari ST. The library includes a lot of useful routines for demo creation. The library is written in C, but it also includes a lot of 68K assembler routines. The library is available on GitHub.
+
+### Tools
+
+* [Motorola 68000 Assembly Extension](https://marketplace.visualstudio.com/items?itemName=clcxce.motorola-68k-assembly) - A Visual Studio Code extension for Motorola 68000 Assembly Language. The extension includes syntax highlighting, snippets, and a debugger.
+
+* [68k Counter](https://marketplace.visualstudio.com/items?itemName=gigabates.68kcounter) - A Visual Studio Code extension for counting the number of cycles and size of the instructions in a 68k assembly file. The extension is useful for optimizing your code.
+
+* [VS Code - C/C++](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools)- The official Visual Studio Code extension for C/C++ development by Microsoft. The extension includes syntax highlighting, snippets, and a debugger.
+
+
+## License
+This project is licenses under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for details.
