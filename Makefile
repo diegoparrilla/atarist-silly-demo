@@ -21,20 +21,26 @@ CC = stcmd gcc
 CFLAGS=-c -std=gnu99 -I$(LIBCMINI)/include -g
 
 # LINKER PARAMETERS
-LINKFLAGS=-nostdlib -s -L$(LIBCMINI)/lib -lcmini -lgcc -Wl,--traditional-format
+# Add the -s option to strip the binary
+LINKFLAGS=-nostdlib -L$(LIBCMINI)/lib -lcmini -lgcc -Wl,--traditional-format
 
 _OBJS = hello.o
 
 OBJS = $(patsubst %,$(ODIR)/%,$(_OBJS))
 
 .PHONY: all
-all: prepare dist
+all: prepare sinwaves dist
 
 .PHONY: prepare
 prepare: clean
 	mkdir -p $(BUILD_DIR)
 
-clean-compile : clean init.o loader.o loop.o print.o rasters.o screen.o scroller.o tiles.o main.o
+.PHONY: sinwaves
+sinwaves:
+	python src/scroller.py 
+	python src/small_sprites.py
+
+clean-compile : clean init.o loader.o loop.o print.o print_s.o rasters.o scroller.o sprite_s.o tiles.o main.o
 
 init.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/init.s -o $(BUILD_DIR)/init.o
@@ -48,31 +54,35 @@ loop.o: prepare
 print.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/print.s -o $(BUILD_DIR)/print.o
 
+print_s.o: prepare
+	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/print_s.s -o $(BUILD_DIR)/print_s.o
+
 rasters.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/rasters.s -o $(BUILD_DIR)/rasters.o
 
 scroller.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/scroller.s -o $(BUILD_DIR)/scroller.o
 
+sprite_s.o: prepare
+	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/sprite_s.s -o $(BUILD_DIR)/sprite_s.o
+
 tiles.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/tiles.s -o $(BUILD_DIR)/tiles.o
 
 # All C files
-screen.o: prepare
-	$(CC) $(CFLAGS) $(SOURCES_DIR)/screen.c -o $(BUILD_DIR)/screen.o
-
 main.o: prepare
 	$(CC) $(CFLAGS) $(SOURCES_DIR)/main.c -o $(BUILD_DIR)/main.o
 
-main: main.o screen.o init.o loader.o loop.o print.o rasters.o  scroller.o tiles.o
+main: main.o init.o loader.o loop.o print.o print_s.o rasters.o  scroller.o sprite_s.o tiles.o
 	$(CC) $(LIBCMINI)/lib/crt0.o \
 	      $(BUILD_DIR)/init.o \
 	      $(BUILD_DIR)/loader.o \
 	      $(BUILD_DIR)/loop.o \
 	      $(BUILD_DIR)/print.o \
+	      $(BUILD_DIR)/print_s.o \
 	      $(BUILD_DIR)/rasters.o \
 	      $(BUILD_DIR)/scroller.o \
-		  $(BUILD_DIR)/screen.o \
+		  $(BUILD_DIR)/sprite_s.o \
 		  $(BUILD_DIR)/tiles.o \
 		  $(BUILD_DIR)/main.o \
 		  -o $(BUILD_DIR)/test.tos $(LINKFLAGS);
