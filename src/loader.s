@@ -1,3 +1,6 @@
+
+                        include src/constants.s     ; Global constants. Start with '_'
+
     XDEF    _asm_populate_bin_ptrs
     XDEF	_asm_display_picture
     XDEF	_asm_display_picture_fast
@@ -19,8 +22,12 @@ _asm_populate_bin_ptrs:
                 move.l a0, _font_large_ready
                 lea.l  _asm_font_large,a0
                 move.l a0, _font_large_ptr
+                lea.l  _asm_font_small_ready,a0
+                move.l a0, _font_small_ready
                 lea.l  _asm_font_small,a0
                 move.l a0, _font_small_ptr
+                lea.l  _asm_c23_logo_ready,a0
+                move.l a0, _c23_logo_ready
                 lea.l  _asm_c23_logo,a0
                 move.l a0, _c23_logo_ptr
                 rts
@@ -63,6 +70,8 @@ _asm_display_picture_fast:
                 section bss
 
                 XDEF    _font_large_ready:
+                XDEF    _font_small_ready:
+                XDEF    _c23_logo_ready:
                 XDEF    _font_large_ptr
                 XDEF    _font_small_ptr
                 XDEF    _c23_logo_ptr
@@ -70,11 +79,26 @@ _asm_display_picture_fast:
                 XDEF    _picture
 
 _font_large_ready: ds.l 1
+_font_small_ready: ds.l 1
+_c23_logo_ready: ds.l 1
 _font_large_ptr: ds.l 1
 _font_small_ptr: ds.l 1
 _c23_logo_ptr:   ds.l 1
 _screen:         ds.l 1
 _picture:        ds.l 1
+
+NUMBER_OF_ROTATIONS         equ 1
+FONT_LARGE_SIZE_WORDS       equ 800     ; 25 lines x 6 bytes x 4 planes
+FONT_SMALL_SIZE_WORDS       equ 32
+C23_LOGO                    equ (_SCREEN_WIDTH_BYTES * 59) / 2 ; _SCREEN_WIDTH_BYTES bytes x 59 lines / 2 bytes per word
+NUMBER_LARGE_FONTS          equ 48
+NUMBER_SMALL_FONTS          equ 40
+_asm_font_large_ready:
+                ds.w FONT_LARGE_SIZE_WORDS * NUMBER_LARGE_FONTS * NUMBER_OF_ROTATIONS   ; The arranged memory fonts
+_asm_font_small_ready:
+                ds.w FONT_SMALL_SIZE_WORDS * NUMBER_SMALL_FONTS * NUMBER_OF_ROTATIONS   ; The arranged memory fonts
+_asm_c23_logo_ready:
+                ds.w C23_LOGO
 
                 section data
 
@@ -85,8 +109,4 @@ _asm_font_small:
 _asm_c23_logo:
                 incbin  resources/C23.PI1
 
-NUMBER_OF_ROTATIONS         equ 1
-FONT_LARGE_SIZE_WORDS       equ 400
-NUMBER_FONTS                equ 48
-_asm_font_large_ready:
-                ds.w FONT_LARGE_SIZE_WORDS * NUMBER_FONTS * NUMBER_OF_ROTATIONS   ; The arranged memory fonts
+                end
