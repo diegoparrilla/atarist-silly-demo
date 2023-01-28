@@ -3,6 +3,7 @@
 ;
         XDEF    _asm_save_state
         XDEF    _asm_restore_state
+		XDEF	_asm_palette
 
 
         section code
@@ -22,6 +23,9 @@ _asm_save_state:
 
 		move.b	$ffff8260.w,save_resolution		;Save old resolution
 		clr.b	$ffff8260.w			            ;Set low resolution
+
+		movem.l _asm_palette, d0-d7			; Set new palette
+		movem.l d0-d7, $ffff8240.w
 
 		move.w	#$2700,sr			    ;Stop all interrupts
 		move.l	$70.w,save_vbl			;Save old VBL
@@ -75,7 +79,6 @@ _asm_restore_state:
 		move.b	(a0)+,$ffff820d.w
 
 		move.b	#$8,$fffffc02.w			;Enable mouse
-
 		rts
 
 dummy:		rte
@@ -95,6 +98,7 @@ save_intb_mask:	    ds.b	1
 save_resolution:	ds.b	1
             		even
 
-		section	data
+		section	data align 2
+_asm_palette:        dc.w $000,$756,$645,$534,$423,$312,$201,$777,$222,$756,$645,$534,$423,$312,$201,$777
 
 		end
