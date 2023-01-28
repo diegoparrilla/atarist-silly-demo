@@ -1,3 +1,5 @@
+                        include src/constants.s     ; Global constants. Start with '_'
+
     XDEF	_asm_print_str
     XDEF    _asm_print_rot
     XREF    _font_large_ready
@@ -47,7 +49,7 @@ _asm_print_str:
                 moveq #0, d2                ; Relative X position in bytes of screen memory
                 moveq #MAX_WIDTH_SIZE,d3    ; Number of chars per line
 print_char:
-                clr.w d0                ; Char in local format
+                moveq #0, d0                ; Char in local format
                 move.b (a0)+,d0        ; Obtain the char to print in ascii encoding
                 beq.s end_print
                 sub.w #32,d0            ; substract 32 to start the index in 0
@@ -90,15 +92,15 @@ _asm_print_font32x25:
                 rept LINE_SIZE - 1
 ;                movem.l  (a6)+, d0-d7
 ;                movem.l d0-d3, ((REPTN + 1)*320,a5)
-;                movem.l d4-d7, (160 + (REPTN + 1)*320,a5)
+;                movem.l d4-d7, (_SCREEN_WIDTH_BYTES + (REPTN + 1)*320,a5)
 
                 movem.l  (a6)+, d0-d3
-                move.l d0, ((REPTN + 1)*160,a5)
+                move.l d0, ((REPTN + 1)*_SCREEN_WIDTH_BYTES,a5)
                 swap d1
-                move.w d1, (4 +(REPTN + 1)*160,a5)
-                move.l d2, (8 + (REPTN + 1)*160,a5)
+                move.w d1, (4 +(REPTN + 1)*_SCREEN_WIDTH_BYTES,a5)
+                move.l d2, (8 + (REPTN + 1)*_SCREEN_WIDTH_BYTES,a5)
                 swap d3
-                move.w d3, (12 + (REPTN + 1)*160,a5)
+                move.w d3, (12 + (REPTN + 1)*_SCREEN_WIDTH_BYTES,a5)
                 endr
 
 ;                movem.l  (a6)+, d0-d3
