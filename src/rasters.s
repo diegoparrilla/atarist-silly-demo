@@ -4,7 +4,7 @@
     XREF    _screen_next
 
                 ; Rasters section
-TIMERB_COUNT_EVERY_SCAN_LINE    EQU 1
+TIMERB_COUNT_EVERY_SCAN_LINE    EQU 2
 TIMERB_EVENT_COUNT              EQU 8
 TILE_COLOR_PALETTE              EQU 32             ; 32 word colors per tile
 COLOR_ITEM_PALETTE_SIZE         EQU 2              ; 2 bytes (1 word) per color
@@ -33,7 +33,7 @@ vblank_routine:
 
                 addq #1, _asm_vbl_counter                           ; set the vbl counter when the vblank starts   
                 clr.w  line_counter                                 ; clear the line counter before starting vblank
-                addq #4, rotate_raster                              ; increment the raster
+                addq #2, rotate_raster                              ; increment the raster
                 and.w #(TILE_COLOR_PALETTE * 2) - 1, rotate_raster
 
                 ;Start up Timer B each VBL
