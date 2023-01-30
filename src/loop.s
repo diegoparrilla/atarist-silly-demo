@@ -10,11 +10,9 @@
     XREF    _asm_save_state
     XREF    _asm_restore_state
     XREF    _asm_vbl_counter
-    XREF    _asm_print_str
     XREF    _asm_print_small_str
     XREF    _asm_draw_tiles
     XREF    _asm_setup_vblank
-    XREF    _scroll_type
     XREF	_asm_cook_small_sprites
     XREF    _asm_restore_all_sprites
     XREF    _asm_show_all_sprites
@@ -65,9 +63,6 @@ clean_screen_loop:
                 dbf     d0, clean_screen_loop
 
                 jsr _asm_cook_small_sprites     ; cook the small sprites
-
-                move.w #$3, _scroll_type        ; default large text scrolling type
-;                bsr print_scroll_8_blitter_copy    ; print the scrolling type
 
                 jsr _asm_draw_tiles             ; draw the tiles on the buffers
 
@@ -139,28 +134,10 @@ main_loop:
 
 check_key0:
                 cmp.b    #$0B, $fffc02            ; Key 0 pressed?
-                bne.b    check_key1               ; Check next key
+                bne.b    check_escape               ; Check next key
                 cmp.w #$0, skew
-                beq.s check_key1
+                beq.s check_escape
                 subq #1, skew                   ; decrease the skew
-
-check_key1:
-                cmp.b    #$02, $fffc02            ; Key 1 pressed?
-                bne.b    check_key2               ; Check next key
-                move.w #$0, _scroll_type
-                bsr.b print_scroll_8_byte_copy
-
-check_key2:
-                cmp.b    #$03, $fffc02            ; Key 2 pressed?
-                bne.b    check_key3              ; Check next key
-                move.w #$1, _scroll_type
-                bsr.s print_scroll_8_movep_copy
-
-check_key3:
-                cmp.b    #$04, $fffc02            ; Key 3 pressed?
-                bne.b    check_escape              ; Check next key
-                move.w #$2, _scroll_type
-                bsr.s print_scroll_8_blitter_copy
 
 check_escape:
                 cmp.b    #$01, $fffc02            ; ESC pressed?
