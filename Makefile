@@ -29,7 +29,7 @@ _OBJS = hello.o
 OBJS = $(patsubst %,$(ODIR)/%,$(_OBJS))
 
 .PHONY: all
-all: prepare sinwaves dist
+all: prepare dist
 
 .PHONY: prepare
 prepare: clean
