@@ -19,13 +19,50 @@ SRC_WIDTH               equ 1      ; Original width of the sprite in WORDS
 SRC_HEIGHT              equ 16     ; Original height of the sprite in lines
 DST_WIDTH               equ 2      ; Original width of the sprite in WORDS
 DST_HEIGHT              equ 16     ; Original height of the sprite in lines
-TOTAL_SHIFTS            equ 16     ; Total number of shifts (The bits of a word)
+TOTAL_SHIFTS            equ 1      ; Total number of shifts (The bits of a word)
+BITS_PER_SKEW           equ 16     ; Number of bits to shift per skew (16 bits per word)
 SPRITE_SIZE_WITH_SHIFT  equ (DST_WIDTH * DST_HEIGHT * (BITPLANES + MASKPLANES) * 2) ; Size of the sprite with the shift
 SPRITE_SIZE_ORIGINAL    equ (SRC_WIDTH * SRC_HEIGHT * BITPLANES * 2)              ; Size of the original sprite (1 bitplane 16 bits 16 lines) in bytes
 SPRITE_SIZE_BACKGROUND  equ (DST_WIDTH * DST_HEIGHT * BACKGROUND_BITPLANES) * 2 ; Size of the background of the sprite (2 bitplanes 16 bits 16 lines)    
 SPRITE_SIZE_BACKGROUND_SHIFTS equ 8 ; 2 ^ SPRITE_SIZE_BACKGROUND_SHIFTS should be the SPRITE_SIZE_BACKGROUND value
 
                 section code
+
+; Convert the 16x16x1 fonts to 32x16x2 plus 16 rotations for old school games
+; 1 bitplane for the sprite and 1 bitplane for the mask
+_asm_cook_small_sprites:
+                    move.l _font_small_ready,a0    ; a0 <- font_small_ready address
+                    lea sprites_ready,a1        ; a1 <- sprites_ready address
+                    move.w #NUMBER_OF_CHARS - 1,d0  ; d0 <- NUMBER_OF_CHARS -1. Count the number of chars in the font
+next_sprite:
+                    moveq #0,d1                 ; d1 <- 0. Track the number of TOTAL_SHIFTS
+rotate_sprite:
+                    moveq #0,d2                 ; d2 <- 0. Count the total lines of each sprite in DST_HEIGHT
+next_line:
+                    moveq #0,d3                 ; d3 <- 0
+                    move.w (a0, d2),d3          ; d3 <- read the next word from the font and inc a0
+                    swap d3                     ; d3 <- swap the word
+                    lsr.l d1,d3                 ; d3 <- shift the word to the right "d1" times
+                    move.l d3,d4                ; d4 <- d3 (copy the word)
+                    not.l d4                    ; d4 <- d4 (negate the word) to create the mask 
+
+                    move.l d4,(a1)+             ; write the mask to the maskplane. It's always before the visible plane
+                    move.l d3,(a1)+             ; write the sprite to the visible plane
+
+                    addq #2,d2                  ; d2 <- d2 + 2 (1 word two bytes). Increment the line counter
+                    and.w #(DST_HEIGHT*2)-1,d2  ; d2 <- d2 & (DST_HEIGHT * 2bytes)-1. Keep the line counter in the range 0..15
+                    bne.s next_line             ; if d2 != 0 then next line of the sprite. If d2 == 0 then we are done with
+                                                ; this sprite for this shift
+
+                    addq #1,d1                  ; d1 <- d1 + 1. Increment the shift counter
+                    and.w #TOTAL_SHIFTS - 1,d1  ; d1 <- d1 & TOTAL_SHIFTS. Keep the shift counter in the range 0..15
+                    bne.s rotate_sprite         ; if d1 != 0 then rotate_sprite. If d1 == 0 then we are done with this shift
+
+                    add.w #SPRITE_SIZE_ORIGINAL, a0 ; a0 <- a0 + SPRITE_SIZE_ORIGINAL
+                                                ; Calculate address of next source sprite and loop again. We are done with this sprite
+                    dbf d0,next_sprite          ; d0 <- d0 - 1. Decrement the sprite counter and loop again. We are done with this char
+                    rts                         ; We are done
+
 
 ; d0.w <- Sprite X position
 ; d1.w <- Sprite Y position
@@ -55,7 +92,6 @@ _asm_show_all_sprites:
 ; Display the sprites
                 move.w (8, a5), d0                 ; Get the X position
                 move.w (8, a6), d1                 ; Get the Y position
-;                add.w #16,d0
                 moveq #2, d2                        ; sprite number for 'C' 
                 moveq #0, d3                        ; sprite index number
                 jsr display_sprite_xy      ; display the flying small sprites
@@ -107,7 +143,7 @@ _asm_restore_all_sprites:
                 move.w #6, d7
 .loop_restore_all_sprites:
                 move.w d7, d3
-                jsr restore_sprite_background ; restore the flying small sprites
+                jsr restore_sprite_background_blitter ; restore the flying small sprites
                 dbf d7, .loop_restore_all_sprites
                 rts
 
@@ -149,84 +185,77 @@ sprite_memory_bckground:
                 add.l d3,a2                     ; a2 <- pointer to the background buffer for the sprite index  in the current screen
                 rts
 
-; Convert the 16x16x1 fonts to 32x16x2 plus 16 rotations for old school games
-; 1 bitplane for the sprite and 1 bitplane for the mask
-_asm_cook_small_sprites:
-                    move.l _font_small_ready,a0    ; a0 <- font_small_ready address
-                    lea sprites_ready,a1        ; a1 <- sprites_ready address
-                    move.w #NUMBER_OF_CHARS - 1,d0  ; d0 <- NUMBER_OF_CHARS -1. Count the number of chars in the font
-next_sprite:
-                    moveq #0,d1                 ; d1 <- 0. Track the number of TOTAL_SHIFTS
-rotate_sprite:
-                    moveq #0,d2                 ; d2 <- 0. Count the total lines of each sprite in DST_HEIGHT
-next_line:
-                    moveq #0,d3                 ; d3 <- 0
-                    move.w (a0, d2),d3          ; d3 <- read the next word from the font and inc a0
-                    swap d3                     ; d3 <- swap the word
-                    lsr.l d1,d3                 ; d3 <- shift the word to the right "d1" times
-                    move.l d3,d4                ; d4 <- d3 (copy the word)
-                    not.l d4                    ; d4 <- d4 (negate the word) to create the mask 
-
-                    move.l d4,(a1)+             ; write the mask to the maskplane. It's always before the visible plane
-                    move.l d3,(a1)+             ; write the sprite to the visible plane
-
-                    addq #2,d2                  ; d2 <- d2 + 2 (1 word two bytes). Increment the line counter
-                    and.w #(DST_HEIGHT*2)-1,d2  ; d2 <- d2 & (DST_HEIGHT * 2bytes)-1. Keep the line counter in the range 0..15
-                    bne.s next_line             ; if d2 != 0 then next line of the sprite. If d2 == 0 then we are done with
-                                                ; this sprite for this shift
-
-                    addq #1,d1                  ; d1 <- d1 + 1. Increment the shift counter
-                    and.w #TOTAL_SHIFTS - 1,d1  ; d1 <- d1 & TOTAL_SHIFTS. Keep the shift counter in the range 0..15
-                    bne.s rotate_sprite         ; if d1 != 0 then rotate_sprite. If d1 == 0 then we are done with this shift
-
-                    add.w #SPRITE_SIZE_ORIGINAL, a0 ; a0 <- a0 + SPRITE_SIZE_ORIGINAL
-                                                ; Calculate address of next source sprite and loop again. We are done with this sprite
-                    dbf d0,next_sprite          ; d0 <- d0 - 1. Decrement the sprite counter and loop again. We are done with this char
-                    rts                         ; We are done
-
-; Restore the background overwritten by the sprite in the current buffered screeen
+; Restore the background overwritten by the sprite in the current buffered screeen with the blitter
 ; Parameters:
 ;   D3.W <- sprite index to restore
 ; Returns:
 ;   D3.W <- sprite index to restore
 ;   A2.L <- screen background buffer address. The address of memory to save the background of the screen
 ;   A3.L <- screen address where the background was restored
-;   A4.L <- pointer to the offset of the background buffer for the sprite index  in the current screen
 ; Modifies:
 ;   a2, a3, a4
 ;   d0, d1, d2, d3, d4, d5, d6
-restore_sprite_background:
+restore_sprite_background_blitter:
                     bsr sprite_memory_bckground
 
-; a3 <- screen background buffer address. The address of memory to save the background of the screen
+; a3 <- screen address where the background was restored
                     move.l (a4), a3                 ; Retrieve the screen address to restore the background buffer
                     cmp.l #0,a3                     ; Test if the sprite was displayed in the previus pass
-                    beq skip_restore                ; If the sprite was not displayed in the previus pass, skip the restore sprite routine
+                    beq .skip_restore                ; If the sprite was not displayed in the previus pass, skip the restore sprite routine
 
 ; a2 <- screen background buffer address. The address of memory to save the background of the screen for the future
-                    REPT DST_HEIGHT                                    ; Repeat DST_HEIGHT number of lines
+                    lea  $FF8A00,a4          ; a4-> BLiTTER register block
+                    move.w #8, SRC_X_INCREMENT(a4) ; source X increment. Jump 3 (2 + 2 + 2) planes.
+                    move.w #8, SRC_Y_INCREMENT(a4) ; source Y increment. Increase the 4 planes.
+                    move.w #8, DEST_X_INCREMENT(a4) ; dest X increment. Jump 3 (2 + 2 +2) planes.
+                    move.w #152, DEST_Y_INCREMENT(a4) ; dest Y increment. Increase the 4 planes.
+                    move.w #2, BLOCK_X_COUNT(a4) ; block X count. It seems don't need to reinitialize every bitplane.
+                    move.w #$FFFF, ENDMASK1_REG(a4) ; endmask1 register
+                    move.w #$FFFF, ENDMASK2_REG(a4) ; endmask2 register
+                    move.w #$FFFF, ENDMASK3_REG(a4) ; endmask3 register. The mask should covers the char column.
+                    move.b #$2, BLITTER_HOP(a4) ; blitter HOP operation. Copy src to dest, 1:1 operation.
+                    move.b #$3, BLITTER_OPERATION(a4) ; blitter operation. Copy src to dest, replace copy.
+                    move.b #%00000000, BLITTER_SKEW(a4) ; blitter skew: -8 pixels and NFSR and FXSR.
 
-                    movem.l ((REPTN * 4 * BACKGROUND_BITPLANES), a2), d0-d3  ; d0 <- read the background 4 planes * 32 bits
+                    ; copy first plane
+                    move.l a2, SRC_ADDR(a4)  ; source address
+                    move.l a3, DEST_ADDR(a4) ; destination address
+                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+.restore_plane_1:
+                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+                    nop                      ; flag state.  The "nop" is executed
+                    bne.s  .restore_plane_1     ; prior to the BLiTTER restarting.
+                                    ; Quit if the BUSY flag was clear.  
 
-                    move.w d0, (8 + (REPTN * _SCREEN_WIDTH_BYTES), a3)    ; restore the background first 16 bits
-                    swap d0                                               ; swap the 32 bits
-                    move.w d0, ((REPTN * _SCREEN_WIDTH_BYTES), a3)        ; restore the background second 16 bits
+                    ; copy second plane
+                    addq.w #2, a2               ; Next bitplane src
+                    addq.w #2, a3               ; Next bitplane dest
+                    move.l a2, SRC_ADDR(a4)  ; source address
+                    move.l a3, DEST_ADDR(a4) ; destination address
+                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+.restore_plane_2:
+                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+                    nop                      ; flag state.  The "nop" is executed
+                    bne.s  .restore_plane_2     ; prior to the BLiTTER restarting.
+                                    ; Quit if the BUSY flag was clear.  
 
-                    move.w d1, (10 + (REPTN * _SCREEN_WIDTH_BYTES), a3)   ; restore the background first 16 bits
-                    swap d1                                               ; swap the 32 bits
-                    move.w d1, (2 +(REPTN * _SCREEN_WIDTH_BYTES), a3)     ; restore the background second 16 bits
-
-                    move.w d2, (12 + (REPTN * _SCREEN_WIDTH_BYTES), a3)   ; restore the background first 16 bits
-                    swap d2                                               ; swap the 32 bits
-                    move.w d2, (4 + (REPTN * _SCREEN_WIDTH_BYTES), a3)    ; restore the background second 16 bits
-
-;                    move.w d3, (14 + (REPTN * _SCREEN_WIDTH_BYTES), a3)   ; restore the background first 16 bits
-;                    swap d3                                               ; swap the 32 bits
-;                    move.w d3, (6 + (REPTN * _SCREEN_WIDTH_BYTES), a3)    ; restore the background second 16 bits
-
-                    ENDR
-skip_restore:
+                    ; copy third plane
+                    addq.w #2, a2               ; Next bitplane src
+                    addq.w #2, a3               ; Next bitplane dest
+                    move.l a2, SRC_ADDR(a4)  ; source address
+                    move.l a3, DEST_ADDR(a4) ; destination address
+                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+.restore_plane_3:
+                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+                    nop                      ; flag state.  The "nop" is executed
+                    bne.s  .restore_plane_3     ; prior to the BLiTTER restarting.
+                                    ; Quit if the BUSY flag was clear.  
+.skip_restore:
                     rts
+
 
 ; Display the sprite passing the X and Y coordinates
 ; Parameters:
@@ -242,23 +271,18 @@ skip_restore:
 display_sprite_xy:
                     move.l _screen_next, a1         ; a1 <- screen_next. A1 now contains the address of the screen where the sprite will be displayed
                     lea sprites_ready,a0            ; a0 <- Memory address where the cooked sprites are stored
-                    move.w d0, d4                   ; d4 <- d0. Copy the X coordinate
-                    and.w #TOTAL_SHIFTS - 1, d4     ; d4 <- d4 & (TOTAL_SHIFTS - 1). Keep the X coordinate in the range 0..15
-; Optimization for X axis
-;                    mulu #SPRITE_SIZE_WITH_SHIFT,d4 ; d4 <- d4 * SPRITE_SIZE_WITH_SHIFT. d4 now contains the offset of the sprite shifted
-; Rotate left
-                    lsl.w #7, d4                    ; d4 <- d4 << 7. d4 now contains the offset of the sprite shifted in bytes
-                    add.w d4,a0                     ; a0 <- a0 + d4. a0 now contains the memory address of the sprite shifted
+                    move.w d0, d7                   ; d7 <- d0. Copy the X coordinate
 
+; Optimization for X axis
+                    moveq #0, d4
                     move.w d2, d4
 ;                    mulu #(SPRITE_SIZE_WITH_SHIFT * TOTAL_SHIFTS), d4 ; d4 <- d4 * SPRITE_SIZE_WITH_SHIFT. d4 now contains the sprite number multiplied by the number of buffers and the sprite size
-                    lsl.l #8, d4                    ; d4 <- d4 * SPRITE_SIZE_WITH_SHIFT. d4 now contains the sprite number multiplied by the number of buffers and the sprite size  
-                    lsl.l #3, d4                    ; d4 <- d4 * SPRITE_SIZE_WITH_SHIFT. d4 now contains the sprite number multiplied by the number of buffers and the sprite size  
+                    lsl.l #7, d4                    ; d4 <- d4 * SPRITE_SIZE_WITH_SHIFT. d4 now contains the sprite number multiplied by the number of buffers and the sprite size  
                     add.l d4, a0                    ; a0 <- a0 + d4. a0 now contains the memory address of the sprite with the index
 ; a0 <- sprite address. The address of the sprite shifted
 
                     ; Calculate X and Y addrees
-                    and.w #(65536 - TOTAL_SHIFTS), d0 ; d0 <- d0 & (65535 - TOTAL_SHIFTS). Keep the X coordinate in the range 0..304
+                    and.w #(65536 - BITS_PER_SKEW), d0 ; d0 <- d0 & (65535 - BITS_PER_SKEW). Keep the X coordinate in the range 0..304
                     lsr.w #1, d0                      ; d0 <- d0 >> 1. d0 now contains the the byte offset of the sprite in X
                     add.w d0, a1                    ; a1 <- a1 + d0. a1 now contains the memory address of the screen
                                                     ; where the sprite will be displayed in X
@@ -283,58 +307,182 @@ display_sprite_xy:
 
                     move.l a1, (a4)                 ; Store the screen address in the background buffer
 
-; Display the small sprite at the given memory address
-; a0 <- sprite address. Where the mask and bitplane of the sprite are stored
-; a1 <- screen address. The address of the screen where the sprite will be displayed
-; a2 <- screen background buffer address. The address of memory to save the background of the screen for the future
+.use_blitter:
+                    lea  $FF8A00,a4          ; a4-> BLiTTER register block
 
-                    REPT DST_HEIGHT                         ; Repeat DST_HEIGHT number of lines
-                    movem.l (a0)+, d0-d1                    ; d0 <- read masks and bitplane of the line
+; save the background planes
+                    move.w #8, SRC_X_INCREMENT(a4) ; source X increment. Jump 3 (2 + 2 + 2) planes.
+                    move.w #152, SRC_Y_INCREMENT(a4) ; source Y increment. Increase the 4 planes.
+                    move.w #8, DEST_X_INCREMENT(a4) ; dest X increment. Jump 3 (2 + 2 +2) planes.
+                    move.w #8, DEST_Y_INCREMENT(a4) ; dest Y increment. Increase the 4 planes.
+                    move.w #2, BLOCK_X_COUNT(a4) ; block X count. It seems don't need to reinitialize every bitplane.
+                    move.w #$FFFF, ENDMASK1_REG(a4) ; endmask1 register
+                    move.w #$FFFF, ENDMASK2_REG(a4) ; endmask2 register
+                    move.w #$FFFF, ENDMASK3_REG(a4) ; endmask3 register. The mask should covers the char column.
+                    move.b #$2, BLITTER_HOP(a4) ; blitter HOP operation. Copy src to dest, 1:1 operation.
+                    move.b #$3, BLITTER_OPERATION(a4) ; blitter operation. Copy src to dest, replace copy.
+                    move.b #%00000000, BLITTER_SKEW(a4) ; blitter skew: nothing
 
-                    move.w ((REPTN * _SCREEN_WIDTH_BYTES), a1), d2     ; d2 <- read the screen first 16 bits
-                    swap d2
-                    move.w (8 + (REPTN * _SCREEN_WIDTH_BYTES), a1), d2 ; d2 <- read the screen second 16 bits
-                    move.l d2, (REPTN * 4 * BACKGROUND_BITPLANES, a2)                           ; save the screen background
-                    and.l d0, d2                            ; d2 <- d2 & d0. Mask the screen with the mask
-                    or.l d1, d2                             ; d2 <- d2 | d1. Or the bitplane with the screen
-                    move.w d2, (8 + (REPTN * _SCREEN_WIDTH_BYTES), a1)        ; or the bitplane with the screen
-                    swap d2
-                    move.w d2, ((REPTN * _SCREEN_WIDTH_BYTES), a1)            ; or the bitplane with the screen
+                    ; copy first plane
+                    move.l a1, SRC_ADDR(a4)  ; source address
+                    move.l a2, DEST_ADDR(a4) ; destination address
+                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+.save_plane_1:
+                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+                    nop                      ; flag state.  The "nop" is executed
+                    bne.s  .save_plane_1     ; prior to the BLiTTER restarting.
+                                    ; Quit if the BUSY flag was clear.  
+                    ; copy second plane
+                    addq.w #2, a1               ; Next bitplane src
+                    addq.w #2, a2               ; Next bitplane dest
+                    move.l a1, SRC_ADDR(a4)  ; source address
+                    move.l a2, DEST_ADDR(a4) ; destination address
+                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+.save_plane_2:
+                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+                    nop                      ; flag state.  The "nop" is executed
+                    bne.s  .save_plane_2     ; prior to the BLiTTER restarting.
+                                    ; Quit if the BUSY flag was clear.  
 
-                    move.w (2 + (REPTN * _SCREEN_WIDTH_BYTES), a1), d2     ; d2 <- read the screen first 16 bits
-                    swap d2
-                    move.w (10 + (REPTN * _SCREEN_WIDTH_BYTES), a1), d2 ; d2 <- read the screen second 16 bits
-                    move.l d2, (4 + (REPTN * 4 * BACKGROUND_BITPLANES), a2)                           ; save the screen background
-                    and.l d0, d2                            ; d2 <- d2 & d0. Mask the screen with the mask
-                    or.l d1, d2                             ; d2 <- d2 | d1. Or the bitplane with the screen
-                    move.w d2, (10 + (REPTN * _SCREEN_WIDTH_BYTES), a1)        ; or the bitplane with the screen
-                    swap d2
-                    move.w d2, (2 + (REPTN * _SCREEN_WIDTH_BYTES), a1)            ; or the bitplane with the screen
+                    ; copy third plane
+                    addq.w #2, a1               ; Next bitplane src
+                    addq.w #2, a2               ; Next bitplane dest
+                    move.l a1, SRC_ADDR(a4)  ; source address
+                    move.l a2, DEST_ADDR(a4) ; destination address
+                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+.save_plane_3:
+                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+                    nop                      ; flag state.  The "nop" is executed
+                    bne.s  .save_plane_3     ; prior to the BLiTTER restarting.
+                                    ; Quit if the BUSY flag was clear.  
 
-                    move.w (4 + (REPTN * _SCREEN_WIDTH_BYTES), a1), d2     ; d2 <- read the screen first 16 bits
-                    swap d2
-                    move.w (12 + (REPTN * _SCREEN_WIDTH_BYTES), a1), d2 ; d2 <- read the screen second 16 bits
-                    move.l d2, (8 + (REPTN * 4 * BACKGROUND_BITPLANES), a2)                           ; save the screen background
-                    and.l d0, d2                            ; d2 <- d2 & d0. Mask the screen with the mask
-                    or.l d1, d2                             ; d2 <- d2 | d1. Or the bitplane with the screen
-                    move.w d2, (12 + (REPTN * _SCREEN_WIDTH_BYTES), a1)            ; or the bitplane with the screen
-                    swap d2
-                    move.w d2, (4 + (REPTN * _SCREEN_WIDTH_BYTES), a1)        ; or the bitplane with the screen
+; Apply masks to the screen
+.apply_masks:
+                    and.w #BITS_PER_SKEW - 1, d7     ; d7 <- d7 & (BITS_PER_SKEW - 1). Keep the X coordinate in the range 0..15
+                    subq #4, a1
+                    move.l a0, a2
+                    addq #4, a2                     ; a2 <- a0 + 4. a2 points to the first visible bitplane
+                                                    ; a0 poinst to the mask 
 
-;                    move.w (6 + (REPTN * _SCREEN_WIDTH_BYTES), a1), d2     ; d2 <- read the screen first 16 bits
-;                    swap d2
-;                    move.w (14 + (REPTN * _SCREEN_WIDTH_BYTES), a1), d2 ; d2 <- read the screen second 16 bits
-;                    move.l d2, (12 + (REPTN * 4 * BACKGROUND_BITPLANES), a2)                           ; save the screen background
-;                    and.l d0, d2                            ; d2 <- d2 & d0. Mask the screen with the mask
-;                    or.l d1, d2                             ; d2 <- d2 | d1. Or the bitplane with the screen
-;                    move.w d2, (14 + (REPTN * _SCREEN_WIDTH_BYTES), a1)            ; or the bitplane with the screen
-;                    swap d2
-;                    move.w d2, (6 + (REPTN * _SCREEN_WIDTH_BYTES), a1)        ; or the bitplane with the screen
+                    move.w #2, SRC_X_INCREMENT(a4) ; source X increment. Jump 3 (2 + 2 + 2) planes.
+                    move.w #6, SRC_Y_INCREMENT(a4) ; source Y increment. Increase the 4 planes.
+                    move.w #8, DEST_X_INCREMENT(a4) ; dest X increment. Jump 3 (2 + 2 +2) planes.
+                    move.w #152, DEST_Y_INCREMENT(a4) ; dest Y increment. Increase the 4 planes.
+                    move.w #2, BLOCK_X_COUNT(a4) ; block X count. It seems don't need to reinitialize every bitplane.
+                    move.b #$2, BLITTER_HOP(a4) ; blitter HOP operation. Copy src to dest, 1:1 operation.
+                    move.b #$1, BLITTER_OPERATION(a4) ; blitter operation. source AND destination.
+                    move.b d7, BLITTER_SKEW(a4) ; blitter skew:
 
-                    ENDR
+                    bsr get_endmask                 ; SHould be optimizable
+
+                    move.w d7, ENDMASK1_REG(a4)     ; endmask1 register
+
+                    ; AND first plane
+                    move.l a0, SRC_ADDR(a4)  ; source address
+                    move.l a1, DEST_ADDR(a4) ; destination address
+                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+.and_mask_plane_1:
+                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+                    nop                      ; flag state.  The "nop" is executed
+                    bne.s  .and_mask_plane_1     ; prior to the BLiTTER restarting.
+                                    ; Quit if the BUSY flag was clear.  
+
+                    move.b #$7, BLITTER_OPERATION(a4) ; blitter operation. source OR destination.
+                    ; OR first plane
+                    move.l a2, SRC_ADDR(a4)  ; source address
+                    move.l a1, DEST_ADDR(a4) ; destination address
+                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+.or_mask_plane_1:
+                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+                    nop                      ; flag state.  The "nop" is executed
+                    bne.s  .or_mask_plane_1     ; prior to the BLiTTER restarting.
+                                    ; Quit if the BUSY flag was clear.  
+
+                    move.b #$1, BLITTER_OPERATION(a4) ; blitter operation. source AND destination.
+                    ; AND second plane
+                    addq.w #2, a1            ; Next bitplane dest
+                    move.l a0, SRC_ADDR(a4)  ; source address
+                    move.l a1, DEST_ADDR(a4) ; destination address
+                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+.and_mask_plane_2:
+                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+                    nop                      ; flag state.  The "nop" is executed
+                    bne.s  .and_mask_plane_2     ; prior to the BLiTTER restarting.
+                                    ; Quit if the BUSY flag was clear.  
+
+                    move.b #$7, BLITTER_OPERATION(a4) ; blitter operation. source OR destination.
+                    ; OR second plane
+                    move.l a2, SRC_ADDR(a4)  ; source address
+                    move.l a1, DEST_ADDR(a4) ; destination address
+                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+.or_mask_plane_2:
+                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+                    nop                      ; flag state.  The "nop" is executed
+                    bne.s  .or_mask_plane_2     ; prior to the BLiTTER restarting.
+                                    ; Quit if the BUSY flag was clear.  
+
+
+                    move.b #$1, BLITTER_OPERATION(a4) ; blitter operation. source AND destination.
+                    ; AND third plane
+                    addq.w #2, a1               ; Next bitplane dest
+                    move.l a0, SRC_ADDR(a4)  ; source address
+                    move.l a1, DEST_ADDR(a4) ; destination address
+                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+.and_mask_plane_3:
+                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+                    nop                      ; flag state.  The "nop" is executed
+                    bne.s  .and_mask_plane_3     ; prior to the BLiTTER restarting.
+                                    ; Quit if the BUSY flag was clear.  
+
+
+                    move.b #$7, BLITTER_OPERATION(a4) ; blitter operation. source OR destination.
+                    ; OR third plane
+                    move.l a2, SRC_ADDR(a4)  ; source address
+                    move.l a1, DEST_ADDR(a4) ; destination address
+                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+.or_mask_plane_3:
+                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+                    nop                      ; flag state.  The "nop" is executed
+                    bne.s  .or_mask_plane_3     ; prior to the BLiTTER restarting.
+                                    ; Quit if the BUSY flag was clear.  
 
                     rts
 
+                EVEN
+; Left end mask for the blitter
+lf_endmask:
+                dc.w %0000000000000000
+                dc.w %1000000000000000
+                dc.w %1100000000000000
+                dc.w %1110000000000000
+                dc.w %1111000000000000
+                dc.w %1111100000000000
+                dc.w %1111110000000000
+                dc.w %1111111000000000
+                dc.w %1111111100000000
+                dc.w %1111111110000000
+                dc.w %1111111111000000
+                dc.w %1111111111100000
+                dc.w %1111111111110000
+                dc.w %1111111111111000
+                dc.w %1111111111111100
+                dc.w %1111111111111110
+                dc.w %1111111111111111
+
+get_endmask:
+                    add.w d7,d7                             ; d7 <- skew position * 2
+                    move.w    lf_endmask(pc,d7.w),d7        ; d7 <- obtain the end data mask
+                    not.w d7                                ; d7 <- ~d7
+                    rts
 
 
                 section bss align 2
