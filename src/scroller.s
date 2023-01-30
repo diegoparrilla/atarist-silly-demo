@@ -3,9 +3,7 @@
     XDEF    _asm_scroll_init
     XDEF    _asm_scroll_rotate
     XDEF    _asm_restore_background_scroll
-    XDEF    _scroll_type
     XREF    _screen_next
-    XREF    _screen_visible
     XREF    _current_screen_mask        ; The buffered screen index
     XREF    _font_large_ready
 
@@ -14,27 +12,6 @@
 FONT_LARGE_SIZE         equ 600
 MAX_WIDTH_SIZE          equ 9      ; MAX_WIDTH_SIZE + 1 chars per line
 SCROLL_SPEED            equ 4      ; Bits to rotate the scroll. Must be 2^n
-
-; Blitter section
-HALFTONE_RAM        equ $00
-SRC_ADDR            equ $24
-SRC_X_INCREMENT     equ $20
-SRC_Y_INCREMENT     equ $22
-ENDMASK1_REG        equ $28
-ENDMASK2_REG        equ $2A
-ENDMASK3_REG        equ $2C
-DEST_ADDR           equ $32
-DEST_X_INCREMENT    equ $2E
-DEST_Y_INCREMENT    equ $30
-BLOCK_X_COUNT       equ $36
-BLOCK_Y_COUNT       equ $38
-BLITTER_HOP         equ $3A
-BLITTER_OPERATION   equ $3B
-BLITTER_CONTROL_REG equ $3C
-BLITTER_SKEW        equ $3D
-
-M_LINE_BUSY           equ  7
-F_LINE_BUSY           equ  %10000000
 
                 section code
 
@@ -58,15 +35,15 @@ _asm_scroll_rotate:
 
 ; Calculate the start value of the memory address of Y position for X=0
                 lea scroll_y_pos, a5            ; The travelling routine for the scroll Y axis
-                move.w scroll_y_pointer, d2
-                cmp.w scroll_table_size, d2
+                move.w scroll_y_pointer, d7
+                cmp.w scroll_table_size, d7
                 bne.s .increse_scroll_y_pointer
-                moveq #0,d2                     ; reset the sprite X pointer
+                moveq #0,d7                     ; reset the sprite X pointer
 .increse_scroll_y_pointer:
-                add.w d2,a5                     ; The address of the scroll Y axis
-                addq #2, d2
-                move.w d2, scroll_y_pointer     ; Store the next value for the future
-                move.w (a5), d2
+                add.w d7,a5                     ; The address of the scroll Y axis
+                addq #2, d7
+                move.w d7, scroll_y_pointer     ; Store the next value for the future
+                move.w (a5), d7
 ; d2 -> The memory offset to start to print the scroll (X=0, Y=(0..175))
 
 ; Exctract the next char to print from the demo text
@@ -80,13 +57,12 @@ _asm_scroll_rotate:
 
 ; a6 -> The font to print memory address
                 move.l _screen_next, a1; The screen position to print
-                lsl.w	#4,d2                    ; Equivalent to: mulu #_SCREEN_WIDTH_BYTES, d2
-                move.w	d2,d3
-                add.w	d2,d2
-                add.w	d2,d2
-                add.w	d3,d2
-                add.w	d2,d2                    ; Till here  
-                add.w d2, a1
+                lsl.w	#4,d7                    ; Equivalent to: mulu #_SCREEN_WIDTH_BYTES, d2
+                move.w	d7,d3
+                add.w	d7,d7
+                add.w	d7,d7
+                add.w	d3,d7
+                add.w	d7,d7                    ; Till here  
 
                 move.w scroll_shift, d3
                 lsr.w #4, d3
@@ -105,6 +81,7 @@ _asm_scroll_rotate:
                 sub.w #32,d1                ; substract 32 to start the index in 0
                 move.b (a2,d1),d1           ; get the char from ascii to custom encoding
                 mulu.w #FONT_LARGE_SIZE,d1  ; each char 'cost' FONT_LARGE_SIZE bytes.
+
                 move.l _font_large_ready, a6
                 add.w d1, a6                 ; a6 -> font memory
 
@@ -112,7 +89,7 @@ _asm_scroll_rotate:
                 and.w #15,d0                    ; d0 -> the bit shift (skew)
                 move.w #REPTN, d1               ; d1 -> the char index
                 add.w #16, a1
-                move.l a1,a5
+                lea (a1, d7),a5
                 bsr print_font32x25_blitter
 
                 ENDR 
@@ -216,7 +193,7 @@ print_font32x25_blitter:
 .char_plane_1:
                 bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a3)       ; Restart BLiTTER and test the BUSY
                 nop                      ; flag state.  The "nop" is executed
-                bne  .char_plane_1     ; prior to the BLiTTER restarting.
+                bne.s  .char_plane_1     ; prior to the BLiTTER restarting.
                                 ; Quit if the BUSY flag was clear.  
 
                 ; copy second plane
@@ -229,7 +206,7 @@ print_font32x25_blitter:
 .char_plane_2:
                 bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a3)       ; Restart BLiTTER and test the BUSY
                 nop                      ; flag state.  The "nop" is executed
-                bne  .char_plane_2     ; prior to the BLiTTER restarting.
+                bne.s  .char_plane_2     ; prior to the BLiTTER restarting.
                                 ; Quit if the BUSY flag was clear.  
 
                 ; copy third plane
@@ -242,7 +219,7 @@ print_font32x25_blitter:
 .char_plane_3:
                 bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a3)       ; Restart BLiTTER and test the BUSY
                 nop                      ; flag state.  The "nop" is executed
-                bne  .char_plane_3     ; prior to the BLiTTER restarting.
+                bne.s  .char_plane_3     ; prior to the BLiTTER restarting.
                                 ; Quit if the BUSY flag was clear.  
                 rts
 
@@ -283,7 +260,7 @@ clean_font32x25_blitter:
 .clean_font_restart_plane_1:
         bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a6)          ; Restart BLiTTER and test the BUSY
         nop                                                     ; flag state.  The "nop" is executed
-        bne  .clean_font_restart_plane_1                              ; prior to the BLiTTER restarting.
+        bne.s  .clean_font_restart_plane_1                              ; prior to the BLiTTER restarting.
                                                                 ; Quit if the BUSY flag was clear.  
         ; second plane
         addq.w #2, a5                                           ; Next bitplane dest
@@ -293,7 +270,7 @@ clean_font32x25_blitter:
 .clean_font_restart_plane_2:
         bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a6)          ; Restart BLiTTER and test the BUSY
         nop                                                     ; flag state.  The "nop" is executed
-        bne  .clean_font_restart_plane_2                              ; prior to the BLiTTER restarting.
+        bne.s  .clean_font_restart_plane_2                              ; prior to the BLiTTER restarting.
                                                                 ; Quit if the BUSY flag was clear.  
         ; third plane
         addq.w #2, a5                                           ; Next bitplane dest
@@ -303,7 +280,7 @@ clean_font32x25_blitter:
 .clean_font_restart_plane_3:
         bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a6)          ; Restart BLiTTER and test the BUSY
         nop                                                     ; flag state.  The "nop" is executed
-        bne  .clean_font_restart_plane_3                              ; prior to the BLiTTER restarting.
+        bne.s  .clean_font_restart_plane_3                              ; prior to the BLiTTER restarting.
                                                                 ; Quit if the BUSY flag was clear.  
         rts
 
@@ -323,7 +300,6 @@ scroll_y_pointer: dc.w 0  ; Current pointer to the scroll_y_pos table. Even word
 
 
 scroll_shift:   dc.w    0
-_scroll_type:   dc.w    0   ; 0 = byte by byte, 1 = movep
 
 ascii_index:                                                   ; Index table to translate ASCII to chars
                 dc.b 47, 26, 40, 47,47, 47, 47, 46, 41, 42     ; SPACE, !, ", #, $, %, &, ', (, )
