@@ -8,7 +8,7 @@ Welcome to the "AtariST Silly Demo", a demo created using the tools available in
 
 ## Requirements
 
-- An Atari ST computer (or emulator). There are several emulators available for Windows, Linux, and Mac. I recommend [Hatari](http://hatari.tuxfamily.org/), and I'm also a big fan of [MiSTer](https://misterfpga.org/). It should work on any Atari ST with at least 1MB of RAM.
+- An Atari STe computer (or emulator). There are several emulators available for Windows, Linux, and Mac. I recommend [Hatari](http://hatari.tuxfamily.org/), and I'm also a big fan of [MiSTer](https://misterfpga.org/). It should work on any Atari STe with at least 1MB of RAM.
 
 - The [atarist-toolkit-docker](https://github.com/diegoparrilla/atarist-toolkit-docker): You should read first how to install it and how to use it. It's very easy.
 
@@ -19,7 +19,7 @@ Welcome to the "AtariST Silly Demo", a demo created using the tools available in
 
 ## Building the demo
 
-Once you have your real Atari ST computer, Hatari emulator or MiSTer Atari ST up and running, you can build the demo using the following steps:
+Once you have your real Atari STe computer, Hatari emulator or MiSTer Atari STe up and running, you can build the demo using the following steps:
 
 1. Clone this repository:
 
@@ -40,17 +40,17 @@ cd atarist-silly-demo
 make
 ```
 
-4. Copy the `dist/test.tos` file to your Atari ST computer, Hatari emulator or MiSTer Atari ST.
+4. Copy the `dist/test.tos` file to your Atari STe computer, Hatari emulator or MiSTer Atari ST.
 
 5. Run the demo!
 
 ## Resources 
 
-This "Resources" section contains a list of helpful materials for learning how to build a demo for the Atari ST. This section include tutorials, documentation, and sample code that can assist in the development of a demo for the Atari ST. These materials are intended for developers with varying levels of experience, mostly experienced programmers.
+This "Resources" section contains a list of helpful materials for learning how to build a demo for the Atari ST. This section include tutorials, documentation, and sample code that can assist in the development of a demo for the Atari STe. These materials are intended for developers with varying levels of experience, mostly experienced programmers.
 
-It is important to note that the Atari ST has a unique architecture and programming environment, so it is essential to familiarize yourself with the platform before diving into demo development.
+It is important to note that the Atari STe has a unique architecture and programming environment, so it is essential to familiarize yourself with the platform before diving into demo development.
 
-Please feel free to contribute to this list by submitting pull requests with additional resources that you have found helpful in your own Atari ST demo development journey.
+Please feel free to contribute to this list by submitting pull requests with additional resources that you have found helpful in your own Atari STe demo development journey.
 
 ### Assembly Language
 
@@ -68,11 +68,11 @@ Please feel free to contribute to this list by submitting pull requests with add
 
 * [Atari STE FAQS](http://alive.atari.org/alive6/ste.php) - A collection of FAQs about how to tame the Atari STe hardware. Another Paradox tutorial. 
 
-* [Programming the blitter](http://s390174849.online.de/ray.tscc.de/blitter.htm) - A tutorial about how to use the blitter of the Atari ST. The tutorial is part of a larger set of tutorials about the Atari ST programming. 
+* [Programming the blitter](http://s390174849.online.de/ray.tscc.de/blitter.htm) - A tutorial about how to use the blitter of the Atari STe. The tutorial is part of a larger set of tutorials about the Atari ST programming. 
 
-* [4 bitplanes de l'Atari ST](https://www.fxjavadevblog.fr/atari-st-4-bitplanes/) - A French tutorial about how to use the 4 bitplanes of the Atari ST. The tutorial is written by FXJavaDevBlog. Probably the best tutorial about the 4 bitplanes of the Atari ST, something you need to master if you want to create a demo for the Atari ST.
+* [4 bitplanes de l'Atari ST](https://www.fxjavadevblog.fr/atari-st-4-bitplanes/) - A French tutorial about how to use the 4 bitplanes of the Atari STe. The tutorial is written by FXJavaDevBlog. Probably the best tutorial about the 4 bitplanes of the Atari ST, something you need to master if you want to create a demo for the Atari STe.
 
-* [Advanced raster interrupt programming](http://thethalionsource.w4f.eu/Artikel/Rasters.htm) - A tutorial about how to use the raster interrupts of the Atari ST. Written by Udo of TEX. Learning from the masters!
+* [Advanced raster interrupt programming](http://thethalionsource.w4f.eu/Artikel/Rasters.htm) - A tutorial about how to use the raster interrupts of the Atari STe. Written by Udo of TEX. Learning from the masters!
 
 ### Demo creation
 
