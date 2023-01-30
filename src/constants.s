@@ -7,3 +7,22 @@ _BUFFER_NUMBERS         equ     32          ; number of buffers to use. Only pow
 _SCREEN_SIZE            equ     32000       ; size of the screen in bytes
 _SCREEN_WIDTH_BYTES     equ     160         ; width of a screen line in bytes
 
+; Blitter section
+HALFTONE_RAM        equ $00
+SRC_ADDR            equ $24
+SRC_X_INCREMENT     equ $20
+SRC_Y_INCREMENT     equ $22
+ENDMASK1_REG        equ $28
+ENDMASK2_REG        equ $2A
+ENDMASK3_REG        equ $2C
+DEST_ADDR           equ $32
+DEST_X_INCREMENT    equ $2E
+DEST_Y_INCREMENT    equ $30
+BLOCK_X_COUNT       equ $36
+BLOCK_Y_COUNT       equ $38
+BLITTER_HOP         equ $3A
+BLITTER_OPERATION   equ $3B
+BLITTER_CONTROL_REG equ $3C
+BLITTER_SKEW        equ $3D
+M_LINE_BUSY         equ  7
+F_LINE_BUSY         equ  %10000000
