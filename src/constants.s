@@ -6,6 +6,9 @@
 _BUFFER_NUMBERS         equ     32          ; number of buffers to use. Only power of 2 allowed (2, 4, 8, 16...)
 _SCREEN_SIZE            equ     32000       ; size of the screen in bytes
 _SCREEN_WIDTH_BYTES     equ     160         ; width of a screen line in bytes
+_SCREEN_HEIGHT_LINES    equ     192         ; height of the visible screen in lines
+
+FONT_LARGE_SIZE_WORDS   equ     600         ; 25 lines x 6 bytes x 3 planes
 
 ; Blitter section
 HALFTONE_RAM        equ $00
@@ -24,5 +27,6 @@ BLITTER_HOP         equ $3A
 BLITTER_OPERATION   equ $3B
 BLITTER_CONTROL_REG equ $3C
 BLITTER_SKEW        equ $3D
-M_LINE_BUSY         equ  7
-F_LINE_BUSY         equ  %10000000
+M_LINE_BUSY         equ  %00000111        ; mask for the Blitter line busy bit
+F_LINE_BUSY         equ  %10000000        ; flag to set the Blitter line busy bit in shared (BLIT) mode
+HOG_MODE            equ  %11000000        ; flag to set the Blitter line busy bit in exclusive (HOG) mode 

@@ -22,6 +22,9 @@ _asm_setup_vblank:
                 rts
 
 vblank_routine:
+                addq #1, _asm_vbl_counter                           ; set the vbl counter when the vblank starts
+                rte   
+
                 move.l _asm_palette + 0, $ffff8240.w	; Set the palette every vblank
                 move.l _asm_palette + 4, $ffff8244.w
                 move.l _asm_palette + 8, $ffff8248.w
@@ -31,11 +34,10 @@ vblank_routine:
                 move.l _asm_palette + 24, $ffff8258.w
                 move.l _asm_palette + 28, $ffff825c.w
 
-                addq #1, _asm_vbl_counter                           ; set the vbl counter when the vblank starts   
                 clr.w  line_counter                                 ; clear the line counter before starting vblank
                 addq #2, rotate_raster                              ; increment the raster
                 and.w #(TILE_COLOR_PALETTE * 2) - 1, rotate_raster
-
+                
                 ;Start up Timer B each VBL
                 move.w	#$2700,sr			                        ;Stop all interrupts
                 clr.b	$fffffa1b.w			                        ;Timer B control (stop)
@@ -54,8 +56,8 @@ timer_b_routine:
                 sub.w rotate_raster, d0
                 and.w #(TILE_COLOR_PALETTE * 2) - 1, d0               ; get the next color word
                 move.w rainbow_colors(pc, d0), $ffff8250.w            ; extract the color from indexed table
-;                cmp.w #(SCREEN_RASTER_LINES - SCREEN_REVERT_RASTER)*2, line_counter
-;                bge.s skip_background_full
+                cmp.w #(SCREEN_RASTER_LINES - SCREEN_REVERT_RASTER), line_counter
+                bge.s skip_background_full
                 addq.w #COLOR_ITEM_PALETTE_SIZE, line_counter         ; increment the line counter by a word
                 move.w (a7)+, d0
                 rte
@@ -77,31 +79,39 @@ rainbow_colors:
                 dc.w $0700     ; red
                 dc.w $0600     ; 
                 dc.w $0500     ;
-                dc.w $0400     ; 
+                dc.w $0400     ;
+                dc.w $0300     ; 
                 dc.w $0750     ; orange
                 dc.w $0640     ;
                 dc.w $0530     ;
                 dc.w $0420     ;
+                dc.w $0310     ;
                 dc.w $0770     ; yellow
                 dc.w $0660     ;
                 dc.w $0550     ;
                 dc.w $0440     ;
+                dc.w $0330     ;
                 dc.w $0070     ; green
                 dc.w $0060     ;
                 dc.w $0050     ;
                 dc.w $0040     ;
+                dc.w $0030     ;
                 dc.w $0007     ; blue
                 dc.w $0006     ;
                 dc.w $0005     ;
                 dc.w $0004     ;
+                dc.w $0003     ;
                 dc.w $0305     ; indigo
                 dc.w $0204     ;
                 dc.w $0103     ;
                 dc.w $0002     ;
+                dc.w $0001     ;
                 dc.w $0406     ; violet
                 dc.w $0305     ;
                 dc.w $0204     ;
                 dc.w $0103     ;
+; Does not fit...
+                dc.w $0002     ;
 atari_letters: 
                 dc.w $0777     ; white
                 dc.w $0666     ; white

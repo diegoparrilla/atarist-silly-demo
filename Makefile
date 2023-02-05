@@ -40,7 +40,7 @@ sinwaves:
 	python src/scroller.py 
 	python src/small_sprites.py
 
-clean-compile : clean init.o loader.o loop.o print.o print_s.o rasters.o scroller.o sprite_s.o tiles.o main.o
+clean-compile : clean init.o loader.o loop.o print.o print_s.o rasters.o scroller.o sprite_b.o sprite_s.o tiles.o ym6.o main.o
 
 init.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/init.s -o $(BUILD_DIR)/init.o
@@ -63,17 +63,23 @@ rasters.o: prepare
 scroller.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/scroller.s -o $(BUILD_DIR)/scroller.o
 
+sprite_b.o: prepare
+	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/sprite_b.s -o $(BUILD_DIR)/sprite_b.o
+
 sprite_s.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/sprite_s.s -o $(BUILD_DIR)/sprite_s.o
 
 tiles.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/tiles.s -o $(BUILD_DIR)/tiles.o
 
+ym6.o: prepare
+	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/ym6.s -o $(BUILD_DIR)/ym6.o
+
 # All C files
 main.o: prepare
 	$(CC) $(CFLAGS) $(SOURCES_DIR)/main.c -o $(BUILD_DIR)/main.o
 
-main: main.o init.o loader.o loop.o print.o print_s.o rasters.o  scroller.o sprite_s.o tiles.o
+main: main.o init.o loader.o loop.o print.o print_s.o rasters.o  scroller.o sprite_b.o sprite_s.o tiles.o ym6.o
 	$(CC) $(LIBCMINI)/lib/crt0.o \
 	      $(BUILD_DIR)/init.o \
 	      $(BUILD_DIR)/loader.o \
@@ -82,8 +88,10 @@ main: main.o init.o loader.o loop.o print.o print_s.o rasters.o  scroller.o spri
 	      $(BUILD_DIR)/print_s.o \
 	      $(BUILD_DIR)/rasters.o \
 	      $(BUILD_DIR)/scroller.o \
+		  $(BUILD_DIR)/sprite_b.o \
 		  $(BUILD_DIR)/sprite_s.o \
 		  $(BUILD_DIR)/tiles.o \
+		  $(BUILD_DIR)/ym6.o \
 		  $(BUILD_DIR)/main.o \
 		  -o $(BUILD_DIR)/test.tos $(LINKFLAGS);
 

@@ -9,7 +9,6 @@
 
                 ; Scrolling section
 
-FONT_LARGE_SIZE         equ 600
 MAX_WIDTH_SIZE          equ 9      ; MAX_WIDTH_SIZE + 1 chars per line
 SCROLL_SPEED            equ 4      ; Bits to rotate the scroll. Must be 2^n
 
@@ -23,6 +22,9 @@ _asm_scroll_init:
                 rts
 
 _asm_restore_background_scroll:
+                move.w #0, d1
+                bsr clean_full_scroll_blitter
+                rts
                 move.w #MAX_WIDTH_SIZE, d0            ; sprite index number (from last to first)
 .restore_background_scroll_loop:
                 move.w d0, d1                           ; scroll char index
@@ -37,9 +39,9 @@ _asm_scroll_rotate:
                 lea scroll_y_pos, a5            ; The travelling routine for the scroll Y axis
                 move.w scroll_y_pointer, d7
                 cmp.w scroll_table_size, d7
-                bne.s .increse_scroll_y_pointer
+                bne.s .increase_scroll_y_pointer
                 moveq #0,d7                     ; reset the sprite X pointer
-.increse_scroll_y_pointer:
+.increase_scroll_y_pointer:
                 add.w d7,a5                     ; The address of the scroll Y axis
                 addq #2, d7
                 move.w d7, scroll_y_pointer     ; Store the next value for the future
@@ -57,7 +59,7 @@ _asm_scroll_rotate:
 
 ; a6 -> The font to print memory address
                 move.l _screen_next, a1; The screen position to print
-                lsl.w	#4,d7                    ; Equivalent to: mulu #_SCREEN_WIDTH_BYTES, d2
+                lsl.w	#4,d7                    ; Equivalent to: mulu #_SCREEN_WIDTH_BYTES, d7
                 move.w	d7,d3
                 add.w	d7,d7
                 add.w	d7,d7
@@ -80,7 +82,7 @@ _asm_scroll_rotate:
                 move.b (REPTN, a0), d1  
                 sub.w #32,d1                ; substract 32 to start the index in 0
                 move.b (a2,d1),d1           ; get the char from ascii to custom encoding
-                mulu.w #FONT_LARGE_SIZE,d1  ; each char 'cost' FONT_LARGE_SIZE bytes.
+                mulu.w #FONT_LARGE_SIZE_WORDS,d1  ; each char 'cost' FONT_LARGE_SIZE_WORDS bytes.
 
                 move.l _font_large_ready, a6
                 add.w d1, a6                 ; a6 -> font memory
@@ -189,11 +191,11 @@ print_font32x25_blitter:
                 move.l a6, SRC_ADDR(a3)  ; source address
                 move.l a5, DEST_ADDR(a3) ; destination address
                 move.w #25, BLOCK_Y_COUNT(a3) ; block Y count. This one must be reinitialized every bitplane
-                or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a3)    ; << START THE BLITTER >>
-.char_plane_1:
-                bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a3)       ; Restart BLiTTER and test the BUSY
-                nop                      ; flag state.  The "nop" is executed
-                bne.s  .char_plane_1     ; prior to the BLiTTER restarting.
+;                or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a3)    ; << START THE BLITTER >>
+;.char_plane_1:
+;                bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a3)       ; Restart BLiTTER and test the BUSY
+;                nop                      ; flag state.  The "nop" is executed
+;                bne.s  .char_plane_1     ; prior to the BLiTTER restarting.
                                 ; Quit if the BUSY flag was clear.  
 
                 ; copy second plane
@@ -202,11 +204,12 @@ print_font32x25_blitter:
                 move.l a6, SRC_ADDR(a3)  ; source address
                 move.l a5, DEST_ADDR(a3) ; destination address
                 move.w #25, BLOCK_Y_COUNT(a3) ; block Y count. This one must be reinitialized every bitplane
-                or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a3)    ; << START THE BLITTER >>
-.char_plane_2:
-                bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a3)       ; Restart BLiTTER and test the BUSY
-                nop                      ; flag state.  The "nop" is executed
-                bne.s  .char_plane_2     ; prior to the BLiTTER restarting.
+                move.b #HOG_MODE, BLITTER_CONTROL_REG(a3) ; Hog mode
+;                or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a3)    ; << START THE BLITTER >>
+;.char_plane_2:
+;                bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a3)       ; Restart BLiTTER and test the BUSY
+;                nop                      ; flag state.  The "nop" is executed
+;                bne.s  .char_plane_2     ; prior to the BLiTTER restarting.
                                 ; Quit if the BUSY flag was clear.  
 
                 ; copy third plane
@@ -215,11 +218,12 @@ print_font32x25_blitter:
                 move.l a6, SRC_ADDR(a3)  ; source address
                 move.l a5, DEST_ADDR(a3) ; destination address
                 move.w #25, BLOCK_Y_COUNT(a3) ; block Y count. This one must be reinitialized every bitplane
-                or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a3)    ; << START THE BLITTER >>
-.char_plane_3:
-                bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a3)       ; Restart BLiTTER and test the BUSY
-                nop                      ; flag state.  The "nop" is executed
-                bne.s  .char_plane_3     ; prior to the BLiTTER restarting.
+                move.b #HOG_MODE, BLITTER_CONTROL_REG(a3) ; Hog mode
+;                or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a3)    ; << START THE BLITTER >>
+;.char_plane_3:
+;                bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a3)       ; Restart BLiTTER and test the BUSY
+;                nop                      ; flag state.  The "nop" is executed
+;                bne.s  .char_plane_3     ; prior to the BLiTTER restarting.
                                 ; Quit if the BUSY flag was clear.  
                 rts
 
@@ -256,33 +260,102 @@ clean_font32x25_blitter:
         ; first plane
         move.l a5, DEST_ADDR(a6)                                ; destination address
         move.w #25, BLOCK_Y_COUNT(a6)                           ; block Y count. This one must be reinitialized every bitplane
-        or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a6)               ; << START THE BLITTER >>
-.clean_font_restart_plane_1:
-        bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a6)          ; Restart BLiTTER and test the BUSY
-        nop                                                     ; flag state.  The "nop" is executed
-        bne.s  .clean_font_restart_plane_1                              ; prior to the BLiTTER restarting.
+        move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+;        or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a6)               ; << START THE BLITTER >>
+;.clean_font_restart_plane_1:
+;        bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a6)          ; Restart BLiTTER and test the BUSY
+;        nop                                                     ; flag state.  The "nop" is executed
+;        bne.s  .clean_font_restart_plane_1                              ; prior to the BLiTTER restarting.
                                                                 ; Quit if the BUSY flag was clear.  
         ; second plane
         addq.w #2, a5                                           ; Next bitplane dest
         move.l a5, DEST_ADDR(a6)                                ; destination address
         move.w #25, BLOCK_Y_COUNT(a6)                           ; block Y count. This one must be reinitialized every bitplane
-        or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a6)               ; << START THE BLITTER >>
-.clean_font_restart_plane_2:
-        bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a6)          ; Restart BLiTTER and test the BUSY
-        nop                                                     ; flag state.  The "nop" is executed
-        bne.s  .clean_font_restart_plane_2                              ; prior to the BLiTTER restarting.
+        move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+;        or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a6)               ; << START THE BLITTER >>
+;.clean_font_restart_plane_2:
+;        bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a6)          ; Restart BLiTTER and test the BUSY
+;        nop                                                     ; flag state.  The "nop" is executed
+;        bne.s  .clean_font_restart_plane_2                              ; prior to the BLiTTER restarting.
                                                                 ; Quit if the BUSY flag was clear.  
         ; third plane
         addq.w #2, a5                                           ; Next bitplane dest
         move.l a5, DEST_ADDR(a6)                                ; destination address
         move.w #25, BLOCK_Y_COUNT(a6)                           ; block Y count. This one must be reinitialized every bitplane
-        or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a6)               ; << START THE BLITTER >>
-.clean_font_restart_plane_3:
-        bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a6)          ; Restart BLiTTER and test the BUSY
-        nop                                                     ; flag state.  The "nop" is executed
-        bne.s  .clean_font_restart_plane_3                              ; prior to the BLiTTER restarting.
+        move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+;        or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a6)               ; << START THE BLITTER >>
+;.clean_font_restart_plane_3:
+;        bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a6)          ; Restart BLiTTER and test the BUSY
+;        nop                                                     ; flag state.  The "nop" is executed
+;        bne.s  .clean_font_restart_plane_3                              ; prior to the BLiTTER restarting.
                                                                 ; Quit if the BUSY flag was clear.  
         rts
+
+
+;  Delete the full scroll block from the screen
+;   Need to pass:
+;       D1.W -> Char index (0 to MAX_WIDTH_SIZE)
+clean_full_scroll_blitter:
+        mulu #(_BUFFER_NUMBERS * 4), d1 ; d1 <- points to init of the offset of the background buffer for the char as argument
+        lea scroll_bckgrnd_idx, a5      ; a5 <- background index buffer
+        move.w _current_screen_mask, d2 ; d2 <- current screen mask
+        add.w d2,d2                     ; d2 <- current screen mask * 2
+        add.w d2,d2                     ; d2 <- current screen mask * 4
+        add.w d1,d2                     ; d2 <- current screen mask * 4 + (char index * BUFFER_NUMBERS * 4)
+        add.w d2, a5                    ; a5 <- background index buffer + current screen mask * 4 + (char index * BUFFER_NUMBERS * 4)
+        move.l (a5), a5                 ; a4 <- get the address of the background buffer for the char
+        cmp.l #0, a5                    ; if the address is 0, then the char is not on the screen yet
+        bne.s .do_clean_full_scroll_blitter  ; so we can skip the blitter
+        rts
+
+.do_clean_full_scroll_blitter:
+        ; we are zeroing old buffer, so we dont need a source address to configure the blitter
+        lea  $FF8A00,a6          ; a6-> BLiTTER register block
+        move.w #8, DEST_X_INCREMENT(a6) ; dest X increment. Jump 3 (2 + 2 +2) planes.
+        move.w #8, DEST_Y_INCREMENT(a6) ; dest Y increment. Increase the 4 planes.
+        move.w #20, BLOCK_X_COUNT(a6) ; block X count. It seems don't need to reinitialize every bitplane.
+        move.w #$FFFF, ENDMASK1_REG(a6) ; endmask1 register
+        move.w #$FFFF, ENDMASK2_REG(a6) ; endmask2 register
+        move.w #$FFFF, ENDMASK3_REG(a6) ; endmask3 register. 
+        move.b #$0, BLITTER_HOP(a6) ; blitter HOP operation. Zeroing the destination.
+        move.b #$0, BLITTER_OPERATION(a6) ; blitter operation. Zeroing the destination.
+        move.b #%00000000, BLITTER_SKEW(a6) ; blitter skew: No skew
+
+        ; Repeat three times for the three planes
+        ; first plane
+        move.l a5, DEST_ADDR(a6)                                ; destination address
+        move.w #25, BLOCK_Y_COUNT(a6)                           ; block Y count. This one must be reinitialized every bitplane
+        move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+;        or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a6)               ; << START THE BLITTER >>
+;.clean_full_scroll_restart_plane_1:
+;        bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a6)          ; Restart BLiTTER and test the BUSY
+;        nop                                                     ; flag state.  The "nop" is executed
+;        bne.s  .clean_full_scroll_restart_plane_1                              ; prior to the BLiTTER restarting.
+        
+        ; second plane
+        addq.w #2, a5                                           ; Next bitplane dest
+        move.l a5, DEST_ADDR(a6)                                ; destination address
+        move.w #25, BLOCK_Y_COUNT(a6)                           ; block Y count. This one must be reinitialized every bitplane
+        move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+;        or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a6)               ; << START THE BLITTER >>
+;.clean_full_scroll_restart_plane_2:
+;        bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a6)          ; Restart BLiTTER and test the BUSY
+;        nop                                                     ; flag state.  The "nop" is executed
+;        bne.s  .clean_full_scroll_restart_plane_2                              ; prior to the BLiTTER restarting.
+                                                                ; Quit if the BUSY flag was clear.  
+        ; third plane
+        addq.w #2, a5                                           ; Next bitplane dest
+        move.l a5, DEST_ADDR(a6)                                ; destination address
+        move.w #25, BLOCK_Y_COUNT(a6)                           ; block Y count. This one must be reinitialized every bitplane
+        move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+;        or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a6)               ; << START THE BLITTER >>
+;.clean_full_scroll_restart_plane_3:
+;        bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a6)          ; Restart BLiTTER and test the BUSY
+;        nop                                                     ; flag state.  The "nop" is executed
+;        bne.s  .clean_full_scroll_restart_plane_3                              ; prior to the BLiTTER restarting.
+                                                                ; Quit if the BUSY flag was clear.  
+        rts
+
 
 
                 section bss

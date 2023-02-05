@@ -55,7 +55,7 @@ print_char:
                 sub.w #32,d0            ; substract 32 to start the index in 0
                 moveq #0, d1            ; The memory location of the char
                 move.b (a1,d0),d1       ; get the char from ascii to custom encoding
-                mulu.w #FONT_LARGE_SIZE,d1          ; each char 'cost' 400 bytes.
+                mulu.w #FONT_LARGE_SIZE_WORDS,d1          ; each char 'cost' 400 bytes.
 
                 move.l d1, a6
                 add.l a2, a6

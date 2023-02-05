@@ -19,6 +19,13 @@
     XREF    _asm_scroll_init
     XREF    _asm_scroll_rotate
     XREF    _asm_restore_background_scroll
+    XREF    _asm_init_big_sprite
+    XREF    _asm_calculate_blitter_address
+    XREF    _asm_display_big_sprite_xy
+    XREF    _asm_restore_big_sprite_background_blitter
+    XREF    _asm_music_ym_init
+    XREF    _asm_music_ym_play
+    XREF    _asm_music_ym_exit
 
 
 TEXT_INFO_POSITION  equ     184         ; 200 lines - 16 pixels height
@@ -68,6 +75,10 @@ clean_screen_loop:
 
                 jsr _asm_scroll_init            ; Init scroll variables
 
+                jsr _asm_init_big_sprite        ; Init big sprite variables
+
+                jsr _asm_music_ym_init          ; Init YM music
+
                 ; The setup_vblank only clear the initial raster and returns
                 ; the addresses of the vblank and timer B (HBL) routines in a1 and a2
                 ; respectively. The save_state routine saves the current state of the
@@ -106,38 +117,74 @@ main_loop:
                 tst.w exit_program
                 bne exit
 
+;                jsr _asm_music_ym_play
+
                 move.w  #$002, $ff8240
 
 ;
 ; All the drawing coding should START here
 ;
 
-                jsr _asm_restore_all_sprites        ; restore all sprites
+;                jsr _asm_restore_all_sprites        ; restore all sprites
 
-                bsr _asm_restore_background_scroll  ; restore the background scroll
+;                bsr _asm_restore_background_scroll  ; restore the background scroll
 
-                bsr _asm_scroll_rotate              ; rotate the large scroll text
+;                bsr _asm_scroll_rotate              ; rotate the large scroll text
 
-                jsr _asm_show_all_sprites           ; show all sprites
+;                jsr _asm_show_all_sprites           ; show all sprites
+
+                jsr _asm_restore_big_sprite_background_blitter
+
+                move.w _big_sprite_x, d0
+                move.w _big_sprite_y, d1
+;                addq #1, d0
+;                addq #1, d1
+;                cmp.w #180, d0
+;                blt.s .save_state_X
+;                move.w #-200,d0
+;.save_state_X:
+;                cmp.w #255, d1
+;                blt.s .save_state
+;                move.w #-200, d1
+;.save_state:
+;                move.w d0, _big_sprite_x
+;                move.w d1, _big_sprite_y
+                jsr _asm_calculate_blitter_address ; calculate the blitter addresses
+                jsr _asm_display_big_sprite_xy
 
 ;
 ; All the drawing coding should END here
 ;
                 move.w  #$000, $ff8240
 
-; Test keys
-                cmp.b #$0A, $fffc02
+; Test keys. Use QAOP to move the big sprite
+                cmp.b #$19, $fffc02         ; Key 'P' pressed?
                 bne.s check_key0
-                cmp.w #$F, skew
-                beq.s check_key0
-                addq #1, skew
+                cmp.w #320, _big_sprite_x
+                bgt.s check_key0
+                addq #1, _big_sprite_x
 
 check_key0:
-                cmp.b    #$0B, $fffc02            ; Key 0 pressed?
-                bne.b    check_escape               ; Check next key
-                cmp.w #$0, skew
-                beq.s check_escape
-                subq #1, skew                   ; decrease the skew
+                cmp.b #$18, $fffc02            ; Key 'O' pressed?
+                bne.b check_key1               ; Check next key
+                cmp.w #-320, _big_sprite_x
+                blt.s check_key1
+                subq #1, _big_sprite_x         ; decrease X
+
+check_key1:
+                cmp.b #$1E, $fffc02             ; Key 'A' pressed?
+                bne.s check_key2
+                cmp.w #200, _big_sprite_y
+                bgt.s check_key2
+                addq #1, _big_sprite_y
+
+check_key2:
+                cmp.b #$10, $fffc02            ; Key 'Q' pressed?
+                bne.b check_escape             ; Check next key
+                cmp.w #-60, _big_sprite_y
+                blt.s check_escape
+                subq #1, _big_sprite_y         ; decrease X
+
 
 check_escape:
                 cmp.b    #$01, $fffc02            ; ESC pressed?
@@ -146,6 +193,7 @@ check_escape:
                 bra change_screen_buffers                
 
 exit:
+                jsr _asm_music_ym_exit
                 bsr _asm_restore_state
 
                 movem.l (a7)+, d0-d7/a0-a6
@@ -196,8 +244,8 @@ _current_screen_mask    dc.w   0
 _screen_next            dc.l   0
 _screen_visible         dc.l   0
 _screen_last            dc.l   0
-_sprite_x               dc.w   8
-_sprite_y               dc.w   8
+_big_sprite_x           dc.w   0
+_big_sprite_y           dc.w   0
 _sprite_text_x          dc.w   8
 _sprite_text_y          dc.w   8
 skew                    dc.w   15

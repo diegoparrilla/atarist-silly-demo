@@ -39,7 +39,8 @@ vertical_axis_loop:
                 movea.l a5,a6
                 move.w #(TILE_WIDTH  / 2) - 1, d3            ; Words per tile line minus 1
 horizontal_axis_loop:
-                move.w (a4), (a6)                  ; Copy horizontal tile line to screen 
+                move.w (a4), d7                  ; Copy horizontal tile line to screen 
+                move.w d7, (a6)                  ; Copy horizontal tile line to screen 
                 add.l #(BITPLANES * BYTES_PER_PLANE), a6
                 addq #2, a4
                 dbf d3, horizontal_axis_loop

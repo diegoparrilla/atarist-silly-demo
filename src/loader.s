@@ -88,7 +88,6 @@ _screen:         ds.l 1
 _picture:        ds.l 1
 
 NUMBER_OF_ROTATIONS         equ 1
-FONT_LARGE_SIZE_WORDS       equ 800     ; 25 lines x 6 bytes x 4 planes
 FONT_SMALL_SIZE_WORDS       equ 32
 C23_LOGO                    equ (_SCREEN_WIDTH_BYTES * 59) / 2 ; _SCREEN_WIDTH_BYTES bytes x 59 lines / 2 bytes per word
 NUMBER_LARGE_FONTS          equ 48
