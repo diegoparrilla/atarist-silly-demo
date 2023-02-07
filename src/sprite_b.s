@@ -61,36 +61,38 @@ _asm_calculate_blitter_address:
 ; If d0 is negative, we have to add the memory offset of the sprite for clipping
 ; If d0 is positive, we have to decrease the memory offset of the sprite for clipping
 
+                cmp.w #-320, d0
+                bgt.s .axis_x_in_range
+                move.w #-320, d0
+.axis_x_in_range:
+                add.w #320, d0
                 move.w d0, d3
                 move.w d0, d7
-                btst   #15, d3
-                beq.s  .positive_x
-.negative_x:
-                neg.w d3
-                add.w #15, d3
+.positive_x:
+; Transform d3.w to the width in WORDS of each bitplane of the sprite
                 lsr.w #4, d3
-                neg.w d3
-                add.w #(DST_WIDTH / 8), d3
-                moveq #0, d0
-; d3.w contains the width in WORDS of the sprite starting from the right side
-; d0.w contains the X coordinate of the sprite. Since negative, it is 0
-
-; Calculate the width in WORDS to skip of each bitplane of the sprite
-                move.w #(DST_WIDTH / 8), d5
-                sub.w d3, d5
+                cmp.w #(DST_WIDTH / 8), d3
+                blt.s .fix_offset_x_axis
+                move.w d3, d5
+                sub.w #DST_WIDTH / 8, d5
+                add.w d5, d5
+                sub.w d5, d3
+                moveq #0, d5
                 tst.w d3
                 bgt.s .offset_y_axis
                 moveq #0, d3           ; if nothing to display because out of range in X, set width to 0
                 bra.s .offset_y_axis
-.positive_x:
-; Transform d3.w to the width in WORDS of each bitplane of the sprite
-                moveq #0, d5
-                lsr.w #4, d3
-                sub.w #DST_WIDTH / 8, d3
-                neg.w d3
-                tst.w d3
+.fix_offset_x_axis:
+                moveq #(DST_WIDTH / 8), d5
+                sub.w d3, d5
+                subq #1, d5
+                addq #2, d3
+                tst.w d5
                 bgt.s .offset_y_axis
-                moveq #0, d3           ; if nothing to display because out of range in X, set width to 0
+                moveq #0, d5
+                subq #1, d3
+;                moveq #DST_WIDTH / 8, d3
+
 ; d3.w contains the width in WORDS of the sprite starting from the left side
 ; d0.w contains the X coordinate of the sprite. Since positive, do not touch it
 
@@ -145,8 +147,16 @@ _asm_calculate_blitter_address:
 ; Calculate the X offset of the sprite in the screen FOR THE FIRST BITPLANE in bytes
                 and.w #(65536 - 16), d0 ; d0 <- d0 & (65535 - TOTAL_SHIFTS). Keep the X coordinate in the range 0..304
                 lsr.w #1, d0            ; d0 <- d0 >> 1. d0 now contains the the byte offset of the sprite in X
+                sub.w #DST_WIDTH, d0
+                btst #15, d0
+                beq.s .do_skew
+                moveq #-8, d0
+;                tst.w d5
+;                beq.s .do_skew
+;                addq #1, d5
 
 ; Calculate the skew position
+.do_skew:
                 and.w #15, d7           ; d2 <- d2 & 15. d2 now contains the skew position
                 move.w d7,d2
 
@@ -319,7 +329,7 @@ _asm_display_big_sprite_xy:
                     move.w #$FFFF, ENDMASK3_REG(a6) ; endmask3 register. The mask should covers the char column.
                     move.b #$2, BLITTER_HOP(a6) ; blitter HOP operation. Copy src to dest, 1:1 operation.
                     move.b #$3, BLITTER_OPERATION(a6) ; blitter operation. Copy src to dest, replace copy.
-                    move.b #%00000000, BLITTER_SKEW(a6) ; blitter skew: nothing
+                    move.b #0, BLITTER_SKEW(a6) ; blitter skew: nothing
 
                     REPT 3
                     ; copy fourth plane
@@ -340,7 +350,7 @@ _asm_display_big_sprite_xy:
                     move.w #8, DEST_X_INCREMENT(a6) ; dest X increment. Jump 3 (2 + 2 +2) planes.
                     move.w d7, DEST_Y_INCREMENT(a6) ; dest Y increment. Increase the 4 planes.
                     move.w d3, BLOCK_X_COUNT(a6) ; block X count. It seems don't need to reinitialize every bitplane.
-                    move.b #$2, BLITTER_HOP(a6) ; blitter HOP operation. Copy src to dest, 1:1 operation.
+                    move.b #$02, BLITTER_HOP(a6) ; blitter HOP operation. Copy src to dest, 1:1 operation.
                     move.b d2, BLITTER_SKEW(a6) ; blitter skew:
 
                     move d2, d1
@@ -404,7 +414,7 @@ get_leftmask:
                     move.w    lf_endmask(pc,d2.w),d2        ; d2 <- obtain the end data mask
                     rts
 .lf_neg:
-                    moveq #-1, d2
+                    moveq #0, d2
                     rts
 
 ; Left end mask for the blitter
@@ -431,7 +441,7 @@ get_rightmask:
                     tst.w d5                                ; if d5 is 0, the mask is for the negative side
                     beq.s .rt_overflow
                     add.w d1,d1                             ; d1 <- skew position * 2
-                    move.w    rt_endmask(pc,d1.w),d1        ; d1 <- obtain the end data mask
+                    move.w    lf_endmask(pc,d1.w),d1        ; d1 <- obtain the end data mask
                     not.w d1
                     rts
 .rt_overflow:

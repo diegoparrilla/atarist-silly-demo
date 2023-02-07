@@ -108,17 +108,23 @@ void AlignLogo320x59(__uint16_t picture[], __uint16_t logo_ready[])
     const int SCREEN_WORDS_WIDTH = 80;
     const int LOGO_WORDS_WIDTH = 80;
     const int LOGO_LINES = 59;
-    const int SKIP_PLANES_WORDS = 0;
+    const int SKIP_PLANES_WORDS = 4;
 
     int linear = 0;
     for (int lines = 0; lines < LOGO_LINES; lines++)
     {
-        for (int idx = 0; idx < SCREEN_WORDS_WIDTH; idx++)
+        int idx = 0;
+        for (idx = 0; idx < SCREEN_WORDS_WIDTH; idx++)
         {
             int offset = (lines * SCREEN_WORDS_WIDTH) + idx;
             logo_ready[linear + idx] = picture[offset];
             picture[offset] = 0xFFFF;
         }
+        //        logo_ready[linear + idx] = 0;
+        //        logo_ready[linear + idx + 2] = 0;
+        //        logo_ready[linear + idx + 4] = 0;
+        //        logo_ready[linear + idx + 6] = 0;
+        //        linear += SCREEN_WORDS_WIDTH + SKIP_PLANES_WORDS;
         linear += SCREEN_WORDS_WIDTH;
     }
 }
