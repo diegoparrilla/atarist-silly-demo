@@ -23,7 +23,7 @@ jobs:
       run: curl -sL https://github.com/diegoparrilla/atarist-toolkit-docker/releases/download/latest/linux.sh | bash
 
     - name: Run - remove interactive
-      run: sed 's/-it//' usr/local/bin/stcmd
+      run: sed 's/-it//' /usr/local/bin/stcmd
 
     - name: Run - Clean stuff
       run: ST_WORKING_FOLDER=/ make clean
