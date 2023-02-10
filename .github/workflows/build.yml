@@ -11,9 +11,13 @@ jobs:
       matrix:
         python-version: [ "3.10" ]
     steps:
+    - name: Create repo temp folder
+      run: mkdir repotmp
+  
     - name: Checkout the code
       uses: actions/checkout@v2
-
+      path: repotmp
+  
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
@@ -25,11 +29,5 @@ jobs:
     - name: Run - remove interactive
       run: sed -i 's/-it//' /usr/local/bin/stcmd
 
-    - name: Run - Display folder content
-      run: ls -al
-
-    - name: Run - Display docker folder content
-      run: ST_WORKING_FOLDER=/ stcmd bash ls /tmp
-
     - name: Run - Build executable and not publish
-      run: ST_WORKING_FOLDER=/ make all
+      run: ST_WORKING_FOLDER=/repotmp make all
