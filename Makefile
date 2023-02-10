@@ -25,7 +25,7 @@ LIBCMINI = /freemint/libcmini
 
 # GCC PARAMETERS
 CC = stcmd gcc
-CFLAGS=-c -std=gnu99 -I$(LIBCMINI)/include -g
+CFLAGS=-c -std=gnu99 -I$(LIBCMINI)/include -g -D_DEBUG=$(DEBUG_MODE)
 
 # LINKER PARAMETERS
 # Add the -s option to strip the binary
