@@ -6,6 +6,8 @@ extern void asm_display_picture();
 extern void asm_display_picture_fast();
 extern void asm_populate_bin_ptrs();
 extern void asm_main_loop();
+extern __uint32_t asm_get_machine_type();
+extern __uint32_t asm_get_memory_size();
 
 extern __uint32_t *font_large_ptr;
 extern __uint32_t *font_small_ptr;
@@ -136,18 +138,48 @@ void AlignLogo320x59(__uint16_t picture[], __uint16_t logo_ready[])
     }
 }
 
+void ShowMachineType(__uint32_t m_type)
+{
+    switch (m_type)
+    {
+    case 0:
+        printf("Machine type: ATARI ST\r\n");
+        break;
+    case 1:
+        printf("Machine type: ATARI STe\r\n");
+        break;
+    case 2:
+        printf("Machine type: ATARI TT\r\n");
+        break;
+    case 3:
+        printf("Machine type: ATARI Falcon030\r\n");
+        break;
+    case 4:
+        printf("Machine type: Milan\r\n");
+        break;
+    default:
+        printf("Machine type: Unknown\r\n");
+        break;
+    }
+}
+
 //================================================================
 // Main program
 void run()
 {
-    asm_populate_bin_ptrs();
+    __uint32_t machine_type = asm_get_machine_type() >> 16;
+    __uint32_t memory_size = asm_get_memory_size();
 
-    // printf("font_large_ptr: %p\r\n", font_large_ptr);
-    // printf("font_small_ptr: %p\r\n", font_small_ptr);
-    // printf("c23_logo_ptr: %p\r\n", c23_logo_ptr);
-    // printf("font_large_ready: %p\r\n", font_large_ready);
-    // printf("font_small_ready: %p\r\n", font_small_ready);
-    printf("asm_main_loop: %p\r\n", asm_main_loop);
+    printf("\r");
+    printf("THE SILLY DEMO - 1990-2023 Logronoide\r\n");
+    printf("=====================================\r\n");
+    ShowMachineType(machine_type);
+    printf("Memory size: %d KB\r\n", memory_size / 1024);
+    printf("\r\n");
+    if (_DEBUG)
+    {
+        printf("asm_main_loop: %p\r\n", asm_main_loop);
+    }
     printf("\r\n");
     printf("\r\n");
     printf("\r\n");
@@ -160,9 +192,29 @@ void run()
     printf("\r\n");
     printf("\r\n");
     printf("\r\n");
-    printf("\r\n");
-    printf("Press 1 to 10 for effects. ESC to exit\r\n");
-    getchar();
+    int valid_machine = 1;
+    if (machine_type != 1)
+    {
+        printf("This demo is only for STE machines.\r\n");
+        valid_machine = 0;
+    }
+    if (memory_size < 2 * 1024 * 1024 - 32768)
+    {
+        printf("This demo needs at least 2 MB of memory.\r\n");
+        valid_machine = 0;
+    }
+    if (!valid_machine)
+    {
+        printf("Press any key to exit.\r\n");
+        getchar();
+    }
+    else
+    {
+        printf("Press any key to start.\r\nPress ESC to exit the demo.\r\n");
+        asm_populate_bin_ptrs();
+        getchar();
+        asm_main_loop();
+    }
 
     //    picture = c23_logo_ptr;
     //    asm_display_picture();
@@ -180,8 +232,6 @@ void run()
 
     //    write_ptr = fopen("IMAGES.BIN", "wb");                             // w for write, b for binary
     //    fwrite(font_large_ready, 28800 + 1280 + 6372 + 512, 1, write_ptr); // write bytes from our buffer
-
-    asm_main_loop();
 }
 
 //================================================================

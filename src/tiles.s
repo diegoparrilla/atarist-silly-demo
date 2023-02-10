@@ -1,7 +1,7 @@
                         include src/constants.s     ; Global constants. Start with '_'
 
     XDEF    _asm_draw_tiles
-    XREF    _screen_base
+    XREF    _screen_base_ptr
 
 
                 ; Tiles section
@@ -18,7 +18,7 @@ TILES_HEIGHT_SCREEEN EQU (200 / TILE_HEIGHT)
 _asm_draw_tiles:
                 lea atari_tile, a0               ; 1st tile
                 bsr tile_rotate
-                move.l #_screen_base, d2
+                move.l _screen_base_ptr, d2
                 clr.b d2                     ; round to 32K boundary
                 move.w #_BUFFER_NUMBERS - 1, d1                ; number of screen buffers minus 1
 buffer_loop:

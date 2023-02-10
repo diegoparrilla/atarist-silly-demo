@@ -5,8 +5,9 @@
     XDEF    _screen_visible
     XDEF    _screen_next
     XDEF    _screen_last
-    XDEF    _screen_base
+    XDEF    _screen_base_ptr
     XDEF    _current_screen_mask
+    XREF    _asm_get_memory_size
     XREF    _asm_save_state
     XREF    _asm_restore_state
     XREF    _asm_vbl_counter
@@ -46,7 +47,7 @@ rotate_screens:
                 lea screen_buffer_index, a0
                 move.l (a0, d0.w), d0
                 move.l (a0, d1.w), d1
-                move.l #_screen_base, a0
+                move.l _screen_base_ptr, a0
                 add.l a0, d0
                 add.l a0, d1
                 clr.b d0                            ; put on 256 byte boundary  
@@ -57,15 +58,27 @@ rotate_screens:
 
 _asm_main_loop:
                 movem.l d0-d7/a0-a6, -(a7)
+; Initiliaze memory
+                jsr _asm_get_memory_size
+                sub.l #_SCREEN_SIZE * _BUFFER_NUMBERS, d0
+                move.l d0, _screen_base_ptr
 
 ; Initialize the first two buffered screens
                 clr.w _current_screen_mask                          ; set the current screen mask to 0s
 
-                lea _screen_base, a0
-                move.l  #((_SCREEN_SIZE * _BUFFER_NUMBERS)/4)-1, d0 ; Clean all the screens
+                move.l _screen_base_ptr, a0
+                move.l  #_SCREEN_SIZE * _BUFFER_NUMBERS / (4 * 8), d0 ; Clean all the screens
                 moveq #0, d1                     ; clear with 0
+                moveq #0, d2                     ; clear with 0
+                moveq #0, d3                     ; clear with 0
+                moveq #0, d4                     ; clear with 0
+                moveq #0, d5                     ; clear with 0
+                moveq #0, d6                     ; clear with 0
+                moveq #0, d7                     ; clear with 0
+                move.l d1, a1                    ; clear with 0
 clean_screen_loop:
-                move.l  d1, (a0)+             ; move one longword to screen
+                movem.l  d1-d7/a1, (a0)             ; move one longword to screen
+                add.l #32, a0                      ; next longword
                 dbf     d0, clean_screen_loop
 
                 jsr _asm_cook_small_sprites     ; cook the small sprites
@@ -188,7 +201,7 @@ print_scroll_8_blitter_copy:
 print_all_buffers:
                 movem.l d0-d1/a3, -(a7)
                 move.w #_BUFFER_NUMBERS - 1, d0
-                move.l #_screen_base, d1
+                move.l _screen_base_ptr, d1
                 clr.b d1
                 move.l d1, a3
                 lea ((TEXT_INFO_PLANE * 2) + (TEXT_INFO_POSITION * _SCREEN_WIDTH_BYTES),a3), a3      ; The bottom of the screen
@@ -200,12 +213,8 @@ print_next_buffer:
 
                 rts
 
-                section bss 
-                ds.b    256
-_screen_base:   ds.b    _BUFFER_NUMBERS * _SCREEN_SIZE
-
-
                 section data
+_screen_base_ptr        dc.l   0
 _current_screen_mask    dc.w   0
 _screen_next            dc.l   0
 _screen_visible         dc.l   0
