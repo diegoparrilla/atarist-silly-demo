@@ -107,19 +107,32 @@ void AlignLogo320x59(__uint16_t picture[], __uint16_t logo_ready[])
 {
     const int SCREEN_WORDS_WIDTH = 80;
     const int LOGO_WORDS_WIDTH = 80;
-    const int LOGO_LINES = 59;
-    const int SKIP_PLANES_WORDS = 0;
+    const int LOGO_LINES = 58;
+    const int SKIP_PLANES_WORDS = 4;
+    const int SPRITE_PLANES = 3;
+    const int SCREEN_PLANES = 4;
+    const int SCREEN_WORDS_PER_PLANE_WIDTH = 18;
 
     int linear = 0;
     for (int lines = 0; lines < LOGO_LINES; lines++)
     {
-        for (int idx = 0; idx < SCREEN_WORDS_WIDTH; idx++)
+        for (int idx = 0; idx < SCREEN_WORDS_PER_PLANE_WIDTH; idx++)
         {
-            int offset = (lines * SCREEN_WORDS_WIDTH) + idx;
-            logo_ready[linear + idx] = picture[offset];
+            int offset = 4 + (lines * SCREEN_WORDS_WIDTH) + (idx * SCREEN_PLANES) + 0;
+            int firstPlane = picture[offset + 0];
+            int secondPlane = picture[offset + 1];
+            int thirdPlane = picture[offset + 2];
+            int fourthPlane = picture[offset + 3];
+            int spriteOffset = (lines * SCREEN_WORDS_PER_PLANE_WIDTH * SPRITE_PLANES) + (idx * SPRITE_PLANES);
+            logo_ready[spriteOffset + 0] = firstPlane;
             picture[offset] = 0xFFFF;
+            logo_ready[spriteOffset + 1] = secondPlane;
+            picture[offset + 1] = 0xFFFF;
+            logo_ready[spriteOffset + 2] = thirdPlane;
+            picture[offset + 2] = 0xFFFF;
+            //            logo_ready[spriteOffset + 3] = fourthPlane;
+            picture[offset + 3] = 0xFFFF;
         }
-        linear += SCREEN_WORDS_WIDTH;
     }
 }
 
@@ -127,28 +140,18 @@ void AlignLogo320x59(__uint16_t picture[], __uint16_t logo_ready[])
 // Main program
 void run()
 {
-
-    screen = Logbase();
-    __uint16_t palette[16];
-    __uint16_t palette_simple[16];
-    clock_t start;
-    float cpu_time_used;
-
     asm_populate_bin_ptrs();
 
-    printf("font_large_ptr: %p\r\n", font_large_ptr);
-    printf("font_small_ptr: %p\r\n", font_small_ptr);
-    printf("c23_logo_ptr: %p\r\n", c23_logo_ptr);
-    printf("font_large_ready: %p\r\n", font_large_ready);
-    printf("font_small_ready: %p\r\n", font_small_ready);
+    // printf("font_large_ptr: %p\r\n", font_large_ptr);
+    // printf("font_small_ptr: %p\r\n", font_small_ptr);
+    // printf("c23_logo_ptr: %p\r\n", c23_logo_ptr);
+    // printf("font_large_ready: %p\r\n", font_large_ready);
+    // printf("font_small_ready: %p\r\n", font_small_ready);
     printf("asm_main_loop: %p\r\n", asm_main_loop);
-
-    // GetDegasPalette((__uint16_t *)font_small_ptr, palette);
-    // for (int i = 0; i < 16; i++)
-    // {
-    //     printf("palette[%d]: %x\r\n", i, palette_simple[i]);
-    // }
-
+    printf("\r\n");
+    printf("\r\n");
+    printf("\r\n");
+    printf("\r\n");
     printf("\r\n");
     printf("\r\n");
     printf("\r\n");
@@ -161,41 +164,24 @@ void run()
     printf("Press 1 to 10 for effects. ESC to exit\r\n");
     getchar();
 
-    picture = c23_logo_ptr;
-    asm_display_picture();
-    AlignLogo320x59((__uint16_t *)screen, (__uint16_t *)c23_logo_ready);
+    //    picture = c23_logo_ptr;
+    //    asm_display_picture();
+    //    AlignLogo320x59((__uint16_t *)screen, (__uint16_t *)c23_logo_ready);
 
-    picture = font_small_ptr;
-    asm_display_picture();
-    AlignFont16x16((__uint16_t *)screen, (__uint16_t *)font_small_ready);
+    //    picture = font_small_ptr;
+    //    asm_display_picture();
+    //    AlignFont16x16((__uint16_t *)screen, (__uint16_t *)font_small_ready);
 
-    picture = font_large_ptr;
-    asm_display_picture();
-    AlignFont32x25((__uint16_t *)screen, (__uint16_t *)font_large_ready);
+    //    picture = font_large_ptr;
+    //    asm_display_picture();
+    //    AlignFont32x25((__uint16_t *)screen, (__uint16_t *)font_large_ready);
+
+    //    FILE *write_ptr;
+
+    //    write_ptr = fopen("IMAGES.BIN", "wb");                             // w for write, b for binary
+    //    fwrite(font_large_ready, 28800 + 1280 + 6372 + 512, 1, write_ptr); // write bytes from our buffer
 
     asm_main_loop();
-
-    // start = clock();
-    // asm_display_picture_fast();
-    // printf("Time: %fs\r\n", ((float) (clock() - start)) / (CLOCKS_PER_SEC));
-    // getchar();
-
-    // picture = font_small_ptr;
-    // GetDegasPalette((__uint16_t *) picture, palette);
-    // Setpalette(palette);
-    // asm_display_picture_fast();
-    // getchar();
-
-    // picture = c23_logo_ptr;
-    // GetDegasPalette((__uint16_t *) picture, palette);
-    // Setpalette(palette);
-    // asm_display_picture_fast();
-    // getchar();
-
-    // Restoring the resolution and its palette
-    // restoreScreenContext(screenContext);
-
-    // free(screenContext);
 }
 
 //================================================================
