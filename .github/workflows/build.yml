@@ -10,14 +10,9 @@ jobs:
     strategy:
       matrix:
         python-version: [ "3.10" ]
-    steps:
-    - name: Create repo temp folder
-      run: mkdir repotmp
-  
+    steps:  
     - name: Checkout the code
       uses: actions/checkout@v3
-      with:
-        path: repotmp
   
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
@@ -30,8 +25,5 @@ jobs:
     - name: Run - remove interactive
       run: sed -i 's/-it//' /usr/local/bin/stcmd
 
-    - name: Run - Show repotmp folder
-      run: cd repotmp; pwd; echo ${GITHUB_WORKSPACE} 
-
     - name: Run - Build executable and not publish
-      run: cd /repotmp && ST_WORKING_FOLDER=/repotmp make all
+      run: ST_WORKING_FOLDER=${GITHUB_WORKSPACE} make all
