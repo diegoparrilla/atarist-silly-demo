@@ -25,7 +25,11 @@ jobs:
     - name: Run - remove interactive
       run: sed -i 's/-it//' /usr/local/bin/stcmd
 
-    - name: Run - Clean stuff
-      run: ST_WORKING_FOLDER=/ make clean
+    - name: Run - Display folder content
+      run: ls -al
+
+    - name: Run - Display docker folder content
+      run: ST_WORKING_FOLDER=/ bash ls -al /
+
     - name: Run - Build executable and not publish
       run: ST_WORKING_FOLDER=/ make all
