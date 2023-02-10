@@ -15,8 +15,9 @@ jobs:
       run: mkdir repotmp
   
     - name: Checkout the code
-      uses: actions/checkout@v2
-      path: repotmp
+      uses: actions/checkout@v3
+      with:
+        path: repotmp
   
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
