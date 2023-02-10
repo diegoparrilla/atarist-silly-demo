@@ -4,6 +4,7 @@
         XDEF    _asm_save_state
         XDEF    _asm_restore_state
 		XDEF	_asm_palette
+		XDEF    _asm_palette_red_devil
 
 
         section code
@@ -99,6 +100,9 @@ save_resolution:	ds.b	1
             		even
 
 		section	data align 2
-_asm_palette:        dc.w $000,$756,$645,$534,$423,$312,$201,$777,$222,$756,$645,$534,$423,$312,$201,$777
+_asm_palette:        		dc.w $000,$756,$645,$534,$423,$312,$201,$777,$222,$756,$645,$534,$423,$312,$201,$777
+
+; RED DEVIL PALETTE
+_asm_palette_red_devil:     dc.w $000,$657,$546,$435,$324,$213,$102,$777,$222,$657,$546,$435,$324,$213,$102,$777
 
 		end
