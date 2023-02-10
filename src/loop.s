@@ -19,6 +19,12 @@
     XREF    _asm_scroll_init
     XREF    _asm_scroll_rotate
     XREF    _asm_restore_background_scroll
+    XREF    _asm_music_ym_init
+    XREF    _asm_music_ym_play
+    XREF    _asm_music_ym_exit
+    XREF    _asm_display_big_sprite
+    XREF    _asm_clean_big_sprite
+
 
 
 TEXT_INFO_POSITION  equ     184         ; 200 lines - 16 pixels height
@@ -68,6 +74,8 @@ clean_screen_loop:
 
                 jsr _asm_scroll_init            ; Init scroll variables
 
+                jsr _asm_music_ym_init          ; Init YM music
+
                 ; The setup_vblank only clear the initial raster and returns
                 ; the addresses of the vblank and timer B (HBL) routines in a1 and a2
                 ; respectively. The save_state routine saves the current state of the
@@ -106,25 +114,30 @@ main_loop:
                 tst.w exit_program
                 bne exit
 
-                move.w  #$002, $ff8240
+                jsr _asm_music_ym_play
 
+                IIF _DEBUG move.w  #$002, $ff8240
 ;
 ; All the drawing coding should START here
 ;
 
                 jsr _asm_restore_all_sprites        ; restore all sprites
 
+;                jsr _asm_clean_big_sprite           ; clean the big sprite
+
                 bsr _asm_restore_background_scroll  ; restore the background scroll
 
+
                 bsr _asm_scroll_rotate              ; rotate the large scroll text
+
+                jsr _asm_display_big_sprite         ; display the big sprite
 
                 jsr _asm_show_all_sprites           ; show all sprites
 
 ;
 ; All the drawing coding should END here
 ;
-                move.w  #$000, $ff8240
-
+                IIF _DEBUG move.w  #0, $ff8240
 ; Test keys
                 cmp.b #$0A, $fffc02
                 bne.s check_key0
@@ -146,6 +159,7 @@ check_escape:
                 bra change_screen_buffers                
 
 exit:
+                jsr _asm_music_ym_exit
                 bsr _asm_restore_state
 
                 movem.l (a7)+, d0-d7/a0-a6
