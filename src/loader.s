@@ -20,16 +20,16 @@ breakpoint:
 _asm_populate_bin_ptrs:
                 lea.l  _asm_font_large_ready,a0
                 move.l a0, _font_large_ready
-                lea.l  _asm_font_large,a0
-                move.l a0, _font_large_ptr
-                lea.l  _asm_font_small_ready,a0
+;                lea.l  _asm_font_large,a0
+;                move.l a0, _font_large_ptr
+                add.w #28800,a0
                 move.l a0, _font_small_ready
-                lea.l  _asm_font_small,a0
-                move.l a0, _font_small_ptr
-                lea.l  _asm_c23_logo_ready,a0
+;                lea.l  _asm_font_small,a0
+;                move.l a0, _font_small_ptr
+                add.w #1280,a0
                 move.l a0, _c23_logo_ready
-                lea.l  _asm_c23_logo,a0
-                move.l a0, _c23_logo_ptr
+;                lea.l  _asm_c23_logo,a0
+;                move.l a0, _c23_logo_ptr
                 rts
 
 
@@ -88,25 +88,12 @@ _screen:         ds.l 1
 _picture:        ds.l 1
 
 NUMBER_OF_ROTATIONS         equ 1
-FONT_LARGE_SIZE_WORDS       equ 800     ; 25 lines x 6 bytes x 4 planes
-FONT_SMALL_SIZE_WORDS       equ 32
-C23_LOGO                    equ (_SCREEN_WIDTH_BYTES * 59) / 2 ; _SCREEN_WIDTH_BYTES bytes x 59 lines / 2 bytes per word
+FONT_SMALL_SIZE_WORDS       equ 32 / 2 ; 32 bytes in words
+C23_LOGO_WORDS              equ (C23LOGO_WIDTH_BYTES * C23LOGO_HEIGHT_LINES) / 2 ; Words. Only 3 planes.
 NUMBER_LARGE_FONTS          equ 48
 NUMBER_SMALL_FONTS          equ 40
+
+                section data align 2
 _asm_font_large_ready:
-                ds.w FONT_LARGE_SIZE_WORDS * NUMBER_LARGE_FONTS * NUMBER_OF_ROTATIONS   ; The arranged memory fonts
-_asm_font_small_ready:
-                ds.w FONT_SMALL_SIZE_WORDS * NUMBER_SMALL_FONTS * NUMBER_OF_ROTATIONS   ; The arranged memory fonts
-_asm_c23_logo_ready:
-                ds.w C23_LOGO
+                incbin "resources/IMAGES.BIN"
 
-                section data
-
-_asm_font_large:
-                incbin  resources/FONT.PI1
-_asm_font_small:
-                incbin  resources/FONT1616.PI1
-_asm_c23_logo:
-                incbin  resources/C23.PI1
-
-                end

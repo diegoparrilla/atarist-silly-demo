@@ -1,7 +1,8 @@
 import math
 
 FRAMES_PER_SECOND = 50  # 50 Hertzs
-
+START_POSITION = (192 - 60 - 24) / 2
+AMPLITUDE = START_POSITION
 # Generate a sine wave table for scroll text
 # entries = 64
 
@@ -16,8 +17,8 @@ for i in range(frames):
     lines_y.append("                dc.w %i\n" % start_position_y)
 
 # Let's use a wave to move from the top to the middle of the screen
-start_position = 80  # The X axis position 0 is at start_position
-amplitude = 78  # The amplitude of the sine wave
+start_position = START_POSITION  # The X axis position 0 is at start_position
+amplitude = AMPLITUDE  # The amplitude of the sine wave
 entries = 256
 for i in range(entries):
     if i >= 192:
@@ -27,16 +28,16 @@ for i in range(entries):
 
 for entries in [256, 192, 128, 96, 128, 192, 256]:
     for j in range(int(1024 / entries)):
-        start_position = 80  # The X axis position 0 is at start_position
-        amplitude = 78  # The amplitude of the sine wave
+        start_position = START_POSITION  # The X axis position 0 is at start_position
+        amplitude = AMPLITUDE  # The amplitude of the sine wave
         for i in range(entries):
             x = i * 360 / (entries - 1)
             y = (math.sin(math.radians(x)) * amplitude) + start_position
             lines_y.append(f"                dc.w {int(y)}\n")
 
 # Let's use a wave to return to the top of the screen
-start_position = 80  # The X axis position 0 is at start_position
-amplitude = 78  # The amplitude of the sine wave
+start_position = START_POSITION  # The X axis position 0 is at start_position
+amplitude = AMPLITUDE  # The amplitude of the sine wave
 entries = 256
 for i in range(entries):
     if i < 192:

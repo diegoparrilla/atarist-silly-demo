@@ -18,7 +18,7 @@ MASKPLANES              equ 1      ; Number of maskplanes
 SRC_WIDTH               equ 1      ; Original width of the sprite in WORDS
 SRC_HEIGHT              equ 16     ; Original height of the sprite in lines
 DST_WIDTH               equ 2      ; Original width of the sprite in WORDS
-DST_HEIGHT              equ 16     ; Original height of the sprite in lines
+DST_HEIGHT              equ SRC_HEIGHT     ; Original height of the sprite in lines
 TOTAL_SHIFTS            equ 1      ; Total number of shifts (The bits of a word)
 BITS_PER_SKEW           equ 16     ; Number of bits to shift per skew (16 bits per word)
 SPRITE_SIZE_WITH_SHIFT  equ (DST_WIDTH * DST_HEIGHT * (BITPLANES + MASKPLANES) * 2) ; Size of the sprite with the shift
@@ -220,12 +220,13 @@ restore_sprite_background_blitter:
                     ; copy first plane
                     move.l a2, SRC_ADDR(a4)  ; source address
                     move.l a3, DEST_ADDR(a4) ; destination address
-                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
-.restore_plane_1:
-                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
-                    nop                      ; flag state.  The "nop" is executed
-                    bne.s  .restore_plane_1     ; prior to the BLiTTER restarting.
+                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
+;                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+;.restore_plane_1:
+;                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+;                    nop                      ; flag state.  The "nop" is executed
+;                    bne.s  .restore_plane_1     ; prior to the BLiTTER restarting.
                                     ; Quit if the BUSY flag was clear.  
 
                     ; copy second plane
@@ -233,12 +234,13 @@ restore_sprite_background_blitter:
                     addq.w #2, a3               ; Next bitplane dest
                     move.l a2, SRC_ADDR(a4)  ; source address
                     move.l a3, DEST_ADDR(a4) ; destination address
-                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
-.restore_plane_2:
-                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
-                    nop                      ; flag state.  The "nop" is executed
-                    bne.s  .restore_plane_2     ; prior to the BLiTTER restarting.
+                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
+;                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+;.restore_plane_2:
+;                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+;                    nop                      ; flag state.  The "nop" is executed
+;                    bne.s  .restore_plane_2     ; prior to the BLiTTER restarting.
                                     ; Quit if the BUSY flag was clear.  
 
                     ; copy third plane
@@ -246,12 +248,13 @@ restore_sprite_background_blitter:
                     addq.w #2, a3               ; Next bitplane dest
                     move.l a2, SRC_ADDR(a4)  ; source address
                     move.l a3, DEST_ADDR(a4) ; destination address
-                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
-.restore_plane_3:
-                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
-                    nop                      ; flag state.  The "nop" is executed
-                    bne.s  .restore_plane_3     ; prior to the BLiTTER restarting.
+                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
+;                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+;.restore_plane_3:
+;                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+;                    nop                      ; flag state.  The "nop" is executed
+;                    bne.s  .restore_plane_3     ; prior to the BLiTTER restarting.
                                     ; Quit if the BUSY flag was clear.  
 .skip_restore:
                     rts
@@ -326,38 +329,24 @@ display_sprite_xy:
                     ; copy first plane
                     move.l a1, SRC_ADDR(a4)  ; source address
                     move.l a2, DEST_ADDR(a4) ; destination address
-                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
-.save_plane_1:
-                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
-                    nop                      ; flag state.  The "nop" is executed
-                    bne.s  .save_plane_1     ; prior to the BLiTTER restarting.
-                                    ; Quit if the BUSY flag was clear.  
+                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
+
                     ; copy second plane
                     addq.w #2, a1               ; Next bitplane src
                     addq.w #2, a2               ; Next bitplane dest
                     move.l a1, SRC_ADDR(a4)  ; source address
                     move.l a2, DEST_ADDR(a4) ; destination address
-                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
-.save_plane_2:
-                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
-                    nop                      ; flag state.  The "nop" is executed
-                    bne.s  .save_plane_2     ; prior to the BLiTTER restarting.
-                                    ; Quit if the BUSY flag was clear.  
+                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
 
                     ; copy third plane
                     addq.w #2, a1               ; Next bitplane src
                     addq.w #2, a2               ; Next bitplane dest
                     move.l a1, SRC_ADDR(a4)  ; source address
                     move.l a2, DEST_ADDR(a4) ; destination address
-                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
-.save_plane_3:
-                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
-                    nop                      ; flag state.  The "nop" is executed
-                    bne.s  .save_plane_3     ; prior to the BLiTTER restarting.
-                                    ; Quit if the BUSY flag was clear.  
+                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
 
 ; Apply masks to the screen
 .apply_masks:
@@ -383,78 +372,45 @@ display_sprite_xy:
                     ; AND first plane
                     move.l a0, SRC_ADDR(a4)  ; source address
                     move.l a1, DEST_ADDR(a4) ; destination address
-                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
-.and_mask_plane_1:
-                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
-                    nop                      ; flag state.  The "nop" is executed
-                    bne.s  .and_mask_plane_1     ; prior to the BLiTTER restarting.
-                                    ; Quit if the BUSY flag was clear.  
+                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
 
                     move.b #$7, BLITTER_OPERATION(a4) ; blitter operation. source OR destination.
                     ; OR first plane
                     move.l a2, SRC_ADDR(a4)  ; source address
                     move.l a1, DEST_ADDR(a4) ; destination address
-                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
-.or_mask_plane_1:
-                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
-                    nop                      ; flag state.  The "nop" is executed
-                    bne.s  .or_mask_plane_1     ; prior to the BLiTTER restarting.
-                                    ; Quit if the BUSY flag was clear.  
+                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
 
                     move.b #$1, BLITTER_OPERATION(a4) ; blitter operation. source AND destination.
                     ; AND second plane
                     addq.w #2, a1            ; Next bitplane dest
                     move.l a0, SRC_ADDR(a4)  ; source address
                     move.l a1, DEST_ADDR(a4) ; destination address
-                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
-.and_mask_plane_2:
-                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
-                    nop                      ; flag state.  The "nop" is executed
-                    bne.s  .and_mask_plane_2     ; prior to the BLiTTER restarting.
-                                    ; Quit if the BUSY flag was clear.  
+                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
 
                     move.b #$7, BLITTER_OPERATION(a4) ; blitter operation. source OR destination.
                     ; OR second plane
                     move.l a2, SRC_ADDR(a4)  ; source address
                     move.l a1, DEST_ADDR(a4) ; destination address
-                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
-.or_mask_plane_2:
-                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
-                    nop                      ; flag state.  The "nop" is executed
-                    bne.s  .or_mask_plane_2     ; prior to the BLiTTER restarting.
-                                    ; Quit if the BUSY flag was clear.  
-
+                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
 
                     move.b #$1, BLITTER_OPERATION(a4) ; blitter operation. source AND destination.
                     ; AND third plane
                     addq.w #2, a1               ; Next bitplane dest
                     move.l a0, SRC_ADDR(a4)  ; source address
                     move.l a1, DEST_ADDR(a4) ; destination address
-                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
-.and_mask_plane_3:
-                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
-                    nop                      ; flag state.  The "nop" is executed
-                    bne.s  .and_mask_plane_3     ; prior to the BLiTTER restarting.
-                                    ; Quit if the BUSY flag was clear.  
-
+                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
 
                     move.b #$7, BLITTER_OPERATION(a4) ; blitter operation. source OR destination.
                     ; OR third plane
                     move.l a2, SRC_ADDR(a4)  ; source address
                     move.l a1, DEST_ADDR(a4) ; destination address
-                    move.w #16, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
-.or_mask_plane_3:
-                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
-                    nop                      ; flag state.  The "nop" is executed
-                    bne.s  .or_mask_plane_3     ; prior to the BLiTTER restarting.
-                                    ; Quit if the BUSY flag was clear.  
-
+                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
                     rts
 
                 EVEN
