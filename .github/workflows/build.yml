@@ -22,8 +22,5 @@ jobs:
     - name: Install AtariST Toolkit Docker image
       run: curl -sL https://github.com/diegoparrilla/atarist-toolkit-docker/releases/download/latest/linux.sh | bash
 
-    - name: Run - remove interactive
-      run: sed -i 's/-it//' /usr/local/bin/stcmd
-
     - name: Run - Build executable and not publish
       run: ST_WORKING_FOLDER=${GITHUB_WORKSPACE} make all
