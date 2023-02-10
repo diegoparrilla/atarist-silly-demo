@@ -31,7 +31,7 @@ jobs:
       run: sed -i 's/-it//' /usr/local/bin/stcmd
 
     - name: Run - Show repotmp folder
-      run: ls -al; ls -al /repotmp
+      run: cd repotmp; pwd; echo ${GITHUB_WORKSPACE} 
 
     - name: Run - Build executable and not publish
       run: cd /repotmp && ST_WORKING_FOLDER=/repotmp make all
