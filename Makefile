@@ -39,7 +39,7 @@ OBJS = $(patsubst %,$(ODIR)/%,$(_OBJS))
 all: prepare sinwaves dist
 
 .PHONY: release
-release: nodebug prepare sinwaves dist
+release: prepare sinwaves dist
 
 .PHONY: prepare
 prepare: clean
