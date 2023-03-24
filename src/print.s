@@ -2,7 +2,7 @@
 
     XDEF	_asm_print_str
     XDEF    _asm_print_rot
-    XREF    _font_large_ready
+    XREF    _asm_font_large_ready_f0
 
 FONT_LARGE_SIZE equ 400
 LINE_SIZE       equ 24     ; Number of lines of the char - 1
@@ -44,7 +44,7 @@ not_end_string:
 _asm_print_str:
                 movem.l d0-d7/a0-a6, -(a7)
                 lea ascii_index, a1     ; The translation table from ASCII to local encoding 
-                move.l _font_large_ready, a2    ; The memory address where the font is cooked
+                move.l _asm_font_large_ready_f0, a2    ; The memory address where the font is cooked
 
                 moveq #0, d2                ; Relative X position in bytes of screen memory
                 moveq #MAX_WIDTH_SIZE,d3    ; Number of chars per line
