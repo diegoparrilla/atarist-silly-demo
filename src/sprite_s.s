@@ -6,18 +6,24 @@
     XDEF	_asm_cook_small_sprites
     XDEF    _asm_restore_all_sprites
     XDEF    _asm_show_all_sprites
+    XREF    _asm_nf_debugger
     XREF    _font_small_ready
     XREF    _screen_next
+    XREF    _screen_pixel_offset
     XREF    _current_screen_mask    ; Current we have to now the screen mask to know where to display and restore the sprite
 
 MAX_SPRITES             equ 8     ; Maximum number of sprites on screen
 NUMBER_OF_CHARS         equ 40     ; Number of characters in the font
+BITPLANE_SCREEN         equ 0      ; Bitplane of the screen to display the sprite: 0..3
 BITPLANES               equ 1      ; Number of bitplanes
+RESTORE_BITPLANES       equ 3      ; Number of bitplanes for the restore
+MASK_BITPLANES          equ 3      ; Number of maskplanes
 BACKGROUND_BITPLANES    equ 4      ; Number of bitplanes for the background stored in the buffer
 MASKPLANES              equ 1      ; Number of maskplanes
 SRC_WIDTH               equ 1      ; Original width of the sprite in WORDS
 SRC_HEIGHT              equ 16     ; Original height of the sprite in lines
 DST_WIDTH               equ 2      ; Original width of the sprite in WORDS
+DST_WIDTH_WITH_PLANES   equ 2  * _SCREEN_BITPLANES ; Original width of the sprite in WORDS
 DST_HEIGHT              equ SRC_HEIGHT     ; Original height of the sprite in lines
 TOTAL_SHIFTS            equ 1      ; Total number of shifts (The bits of a word)
 BITS_PER_SKEW           equ 16     ; Number of bits to shift per skew (16 bits per word)
@@ -196,6 +202,7 @@ sprite_memory_bckground:
 ;   a2, a3, a4
 ;   d0, d1, d2, d3, d4, d5, d6
 restore_sprite_background_blitter:
+;                    IIF _DEBUG jsr _asm_nf_debugger
                     bsr sprite_memory_bckground
 
 ; a3 <- screen address where the background was restored
@@ -203,59 +210,36 @@ restore_sprite_background_blitter:
                     cmp.l #0,a3                     ; Test if the sprite was displayed in the previus pass
                     beq .skip_restore                ; If the sprite was not displayed in the previus pass, skip the restore sprite routine
 
+                    move.w #(_SCREEN_WIDTH_BYTES - (DST_WIDTH_WITH_PLANES * 2) + 2 * _SCREEN_BITPLANES), d6
+
 ; a2 <- screen background buffer address. The address of memory to save the background of the screen for the future
                     lea  $FF8A00,a4          ; a4-> BLiTTER register block
                     move.w #8, SRC_X_INCREMENT(a4) ; source X increment. Jump 3 (2 + 2 + 2) planes.
                     move.w #8, SRC_Y_INCREMENT(a4) ; source Y increment. Increase the 4 planes.
                     move.w #8, DEST_X_INCREMENT(a4) ; dest X increment. Jump 3 (2 + 2 +2) planes.
-                    move.w #152, DEST_Y_INCREMENT(a4) ; dest Y increment. Increase the 4 planes.
+                    move.w d6, DEST_Y_INCREMENT(a4) ; dest Y increment. Increase the 4 planes.
                     move.w #2, BLOCK_X_COUNT(a4) ; block X count. It seems don't need to reinitialize every bitplane.
                     move.w #$FFFF, ENDMASK1_REG(a4) ; endmask1 register
                     move.w #$FFFF, ENDMASK2_REG(a4) ; endmask2 register
                     move.w #$FFFF, ENDMASK3_REG(a4) ; endmask3 register. The mask should covers the char column.
-                    move.b #$2, BLITTER_HOP(a4) ; blitter HOP operation. Copy src to dest, 1:1 operation.
-                    move.b #$3, BLITTER_OPERATION(a4) ; blitter operation. Copy src to dest, replace copy.
+; WARNING!
+; We don't really need to restore the background, erasing it is enough.
+;                    move.b #$2, BLITTER_HOP(a4) ; blitter HOP operation. Copy src to dest, 1:1 operation.
+;                    move.b #$3, BLITTER_OPERATION(a4) ; blitter operation. Copy src to dest, replace copy.
+                    move.b #$0, BLITTER_HOP(a4) ; blitter HOP operation. Copy src to dest, 1:1 operation.
+                    move.b #$0, BLITTER_OPERATION(a4) ; blitter operation. Copy src to dest, replace copy.
+
                     move.b #%00000000, BLITTER_SKEW(a4) ; blitter skew: -8 pixels and NFSR and FXSR.
 
-                    ; copy first plane
+                    REPT RESTORE_BITPLANES
+                    ; copy plane
                     move.l a2, SRC_ADDR(a4)  ; source address
                     move.l a3, DEST_ADDR(a4) ; destination address
                     move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
                     move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
-;                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
-;.restore_plane_1:
-;                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
-;                    nop                      ; flag state.  The "nop" is executed
-;                    bne.s  .restore_plane_1     ; prior to the BLiTTER restarting.
-                                    ; Quit if the BUSY flag was clear.  
-
-                    ; copy second plane
                     addq.w #2, a2               ; Next bitplane src
                     addq.w #2, a3               ; Next bitplane dest
-                    move.l a2, SRC_ADDR(a4)  ; source address
-                    move.l a3, DEST_ADDR(a4) ; destination address
-                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
-;                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
-;.restore_plane_2:
-;                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
-;                    nop                      ; flag state.  The "nop" is executed
-;                    bne.s  .restore_plane_2     ; prior to the BLiTTER restarting.
-                                    ; Quit if the BUSY flag was clear.  
-
-                    ; copy third plane
-                    addq.w #2, a2               ; Next bitplane src
-                    addq.w #2, a3               ; Next bitplane dest
-                    move.l a2, SRC_ADDR(a4)  ; source address
-                    move.l a3, DEST_ADDR(a4) ; destination address
-                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
-;                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
-;.restore_plane_3:
-;                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
-;                    nop                      ; flag state.  The "nop" is executed
-;                    bne.s  .restore_plane_3     ; prior to the BLiTTER restarting.
-                                    ; Quit if the BUSY flag was clear.  
+                    ENDR
 .skip_restore:
                     rts
 
@@ -270,11 +254,16 @@ restore_sprite_background_blitter:
 ;   Nothing
 ; Modifies:
 ;   a0, a1, a2, a3, a4
-;   d0, d1, d2, d3, d4, d5, d6
+;   d0, d1, d2, d3, d4, d5, d6, d7
 display_sprite_xy:
+;                    IIF _DEBUG jsr _asm_nf_debugger
+                    moveq #0, d7
+                    move.b _screen_pixel_offset, d7
                     move.l _screen_next, a1         ; a1 <- screen_next. A1 now contains the address of the screen where the sprite will be displayed
+                    add.l #BITPLANE_SCREEN * 2, a1  ; a1 <- a1 + BITPLANE_SCREEN. A1 now contains the address of the screen where the sprite will be displayed
                     lea sprites_ready,a0            ; a0 <- Memory address where the cooked sprites are stored
-                    move.w d0, d7                   ; d7 <- d0. Copy the X coordinate
+                    add.w d0, d7                   ; d7 <- d0. Copy the X coordinate
+                    move.w d7, d0 
 
 ; Optimization for X axis
                     moveq #0, d4
@@ -290,15 +279,7 @@ display_sprite_xy:
                     add.w d0, a1                    ; a1 <- a1 + d0. a1 now contains the memory address of the screen
                                                     ; where the sprite will be displayed in X
 ; Optimization for Y axis
-;                    mulu #_SCREEN_WIDTH_BYTES,d1     ; d1 <- d1 * _SCREEN_WIDTH_BYTES. d1 now contains the offset of the screen in Y
-; 
-                    lsl.w	#4,d1                   ;
-                    move.w	d1,d0
-                    add.w	d1,d1
-                    add.w	d1,d1
-                    add.w	d0,d1
-                    add.w	d1,d1                    ; Till here   
-
+                    mulu #_SCREEN_WIDTH_BYTES,d1     ; d1 <- d1 * _SCREEN_WIDTH_BYTES. d1 now contains the offset of the screen in Y
                     add.w d1,a1                     ; a1 <- a1 + d1. a1 now contains the memory address of the screen
                                                     ; where the sprite will be displayed in X and Y
 
@@ -309,13 +290,13 @@ display_sprite_xy:
                     bsr sprite_memory_bckground
 
                     move.l a1, (a4)                 ; Store the screen address in the background buffer
-
 .use_blitter:
                     lea  $FF8A00,a4          ; a4-> BLiTTER register block
 
+                    move.w #(_SCREEN_WIDTH_BYTES - (DST_WIDTH_WITH_PLANES * 2) + 2 * _SCREEN_BITPLANES), d6
 ; save the background planes
                     move.w #8, SRC_X_INCREMENT(a4) ; source X increment. Jump 3 (2 + 2 + 2) planes.
-                    move.w #152, SRC_Y_INCREMENT(a4) ; source Y increment. Increase the 4 planes.
+                    move.w d6, SRC_Y_INCREMENT(a4) ; source Y increment. Increase the 4 planes.
                     move.w #8, DEST_X_INCREMENT(a4) ; dest X increment. Jump 3 (2 + 2 +2) planes.
                     move.w #8, DEST_Y_INCREMENT(a4) ; dest Y increment. Increase the 4 planes.
                     move.w #2, BLOCK_X_COUNT(a4) ; block X count. It seems don't need to reinitialize every bitplane.
@@ -326,32 +307,22 @@ display_sprite_xy:
                     move.b #$3, BLITTER_OPERATION(a4) ; blitter operation. Copy src to dest, replace copy.
                     move.b #%00000000, BLITTER_SKEW(a4) ; blitter skew: nothing
 
-                    ; copy first plane
-                    move.l a1, SRC_ADDR(a4)  ; source address
-                    move.l a2, DEST_ADDR(a4) ; destination address
-                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
-
-                    ; copy second plane
-                    addq.w #2, a1               ; Next bitplane src
-                    addq.w #2, a2               ; Next bitplane dest
-                    move.l a1, SRC_ADDR(a4)  ; source address
-                    move.l a2, DEST_ADDR(a4) ; destination address
-                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
-
-                    ; copy third plane
-                    addq.w #2, a1               ; Next bitplane src
-                    addq.w #2, a2               ; Next bitplane dest
-                    move.l a1, SRC_ADDR(a4)  ; source address
-                    move.l a2, DEST_ADDR(a4) ; destination address
-                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
+; WARNING! 
+; We don't need to restore the background, simply delete it
+;                    REPT RESTORE_BITPLANES
+;                    ; copy plane
+;                    move.l a1, SRC_ADDR(a4)  ; source address
+;                    move.l a2, DEST_ADDR(a4) ; destination address
+;                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+;                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
+;                    addq.w #2, a1               ; Next bitplane src
+;                    addq.w #2, a2               ; Next bitplane dest
+;                    ENDR
+;                    subq #RESTORE_BITPLANES*2, a1
 
 ; Apply masks to the screen
 .apply_masks:
                     and.w #BITS_PER_SKEW - 1, d7     ; d7 <- d7 & (BITS_PER_SKEW - 1). Keep the X coordinate in the range 0..15
-                    subq #4, a1
                     move.l a0, a2
                     addq #4, a2                     ; a2 <- a0 + 4. a2 points to the first visible bitplane
                                                     ; a0 poinst to the mask 
@@ -359,7 +330,7 @@ display_sprite_xy:
                     move.w #2, SRC_X_INCREMENT(a4) ; source X increment. Jump 3 (2 + 2 + 2) planes.
                     move.w #6, SRC_Y_INCREMENT(a4) ; source Y increment. Increase the 4 planes.
                     move.w #8, DEST_X_INCREMENT(a4) ; dest X increment. Jump 3 (2 + 2 +2) planes.
-                    move.w #152, DEST_Y_INCREMENT(a4) ; dest Y increment. Increase the 4 planes.
+                    move.w d6, DEST_Y_INCREMENT(a4) ; dest Y increment. Increase the 4 planes.
                     move.w #2, BLOCK_X_COUNT(a4) ; block X count. It seems don't need to reinitialize every bitplane.
                     move.b #$2, BLITTER_HOP(a4) ; blitter HOP operation. Copy src to dest, 1:1 operation.
                     move.b #$1, BLITTER_OPERATION(a4) ; blitter operation. source AND destination.
@@ -369,48 +340,24 @@ display_sprite_xy:
 
                     move.w d7, ENDMASK1_REG(a4)     ; endmask1 register
 
+                    REPT MASK_BITPLANES
                     ; AND first plane
-                    move.l a0, SRC_ADDR(a4)  ; source address
-                    move.l a1, DEST_ADDR(a4) ; destination address
-                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
+;                    move.b #$1, BLITTER_OPERATION(a4) ; blitter operation. source AND destination.
+;                    move.l a0, SRC_ADDR(a4)  ; source address
+;                    move.l a1, DEST_ADDR(a4) ; destination address
+;                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
+;                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
 
-                    move.b #$7, BLITTER_OPERATION(a4) ; blitter operation. source OR destination.
                     ; OR first plane
+                    move.b #$7, BLITTER_OPERATION(a4) ; blitter operation. source OR destination.
                     move.l a2, SRC_ADDR(a4)  ; source address
                     move.l a1, DEST_ADDR(a4) ; destination address
                     move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
                     move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
 
-                    move.b #$1, BLITTER_OPERATION(a4) ; blitter operation. source AND destination.
-                    ; AND second plane
+                    ; Next bitplane dest 
                     addq.w #2, a1            ; Next bitplane dest
-                    move.l a0, SRC_ADDR(a4)  ; source address
-                    move.l a1, DEST_ADDR(a4) ; destination address
-                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
-
-                    move.b #$7, BLITTER_OPERATION(a4) ; blitter operation. source OR destination.
-                    ; OR second plane
-                    move.l a2, SRC_ADDR(a4)  ; source address
-                    move.l a1, DEST_ADDR(a4) ; destination address
-                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
-
-                    move.b #$1, BLITTER_OPERATION(a4) ; blitter operation. source AND destination.
-                    ; AND third plane
-                    addq.w #2, a1               ; Next bitplane dest
-                    move.l a0, SRC_ADDR(a4)  ; source address
-                    move.l a1, DEST_ADDR(a4) ; destination address
-                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
-
-                    move.b #$7, BLITTER_OPERATION(a4) ; blitter operation. source OR destination.
-                    ; OR third plane
-                    move.l a2, SRC_ADDR(a4)  ; source address
-                    move.l a1, DEST_ADDR(a4) ; destination address
-                    move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
+                    ENDR
                     rts
 
                 EVEN

@@ -26,4 +26,4 @@ jobs:
       run: sed -i 's/-it//' /usr/local/bin/stcmd
 
     - name: Run - Build executable and not publish
-      run: ST_WORKING_FOLDER=${GITHUB_WORKSPACE} make all
+      run: ST_WORKING_FOLDER=${GITHUB_WORKSPACE} stcmd make all DEBUG_MODE=0

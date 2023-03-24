@@ -1,7 +1,8 @@
 import math
 
 FRAMES_PER_SECOND = 50  # 50 Hertzs
-START_POSITION = (192 - 60 - 24) / 2
+# START_POSITION = (192 - 60 - 24) / 2
+START_POSITION = (200 - 30) / 2
 AMPLITUDE = START_POSITION
 # Generate a sine wave table for scroll text
 # entries = 64

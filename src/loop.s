@@ -4,39 +4,66 @@
     XDEF	_asm_main_loop
     XDEF    _screen_visible
     XDEF    _screen_next
-    XDEF    _screen_last
     XDEF    _screen_base_ptr
     XDEF    _current_screen_mask
+    XDEF    _screen_pixel_offset
+    XDEF    _screen_absolute_offset
+    XDEF    _screen_dither_tiktok
+    XREF    _asm_init_nativefeatures
     XREF    _asm_get_memory_size
     XREF    _asm_save_state
     XREF    _asm_restore_state
     XREF    _asm_vbl_counter
     XREF    _asm_print_small_str
+    XREF    _asm_init_tiles
     XREF    _asm_draw_tiles
+    XREF    _asm_draw_uridium
     XREF    _asm_setup_vblank
     XREF	_asm_cook_small_sprites
     XREF    _asm_restore_all_sprites
     XREF    _asm_show_all_sprites
     XREF    _asm_scroll_init
     XREF    _asm_scroll_rotate
-    XREF    _asm_restore_background_scroll
-    XREF    _asm_music_ym_init
-    XREF    _asm_music_ym_play
-    XREF    _asm_music_ym_exit
     XREF    _asm_display_big_sprite
     XREF    _asm_clean_big_sprite
 
+    XREF    _asm_textroll_init
+    XREF    _asm_show_textroll_bar
+    XREF    _asm_restore_textroll_bar
+
+    XREF   tuneinit
+    XREF   tunedeinit
+    XREF   tuneinter
 
 
-TEXT_INFO_POSITION  equ     184         ; 200 lines - 16 pixels height
-TEXT_INFO_PLANE     equ     0           ; 0 = plane A, 1 = plane B; 2 = plane C, 3 = plane D
-
+TEXT_INFO_POSITION          equ 184         ; 200 lines - 16 pixels height
+TEXT_INFO_PLANE             equ 0           ; 0 = plane A, 1 = plane B; 2 = plane C, 3 = plane D
                 ; Scrolling section
 
                 section code
 rotate_screens:
-                move.w _current_screen_mask, d0
-                addq #1, d0
+; First, do tik-tok dithering
+                eor.w #1, _screen_dither_tiktok
+
+; Increment the current screen pixel offset
+                moveq.l #0, d0
+                move.b _screen_pixel_offset, d0
+                addq.b #_SCROLL_BACKGROUND_SPEED, d0
+                and.b #15, d0
+                move.b d0, _screen_pixel_offset
+
+; Calculate the sliding offset in words depending on the pixel offset
+; if the pixel offset is 0, the offset is the full offset
+; if not, substract fourd words (a full 16 pixel 4 planes)
+                move.b #_SCREEN_L_OFFSET_WORDS, d1
+                tst.w d0
+                beq .logical_rotation
+.no_skew_fix_line_offset:
+                subq.b #4, d1
+.logical_rotation:
+                move.b d1, _screen_absolute_offset
+
+; Update the current screen mask depending on the number of buffers
                 and.w #_BUFFER_NUMBERS-1,d0
                 move.w d0, _current_screen_mask
                 add.w d0,d0
@@ -44,30 +71,49 @@ rotate_screens:
                 move.w d0,d1
                 addq #4, d1
                 and.w #(_BUFFER_NUMBERS*4)-1,d1
+; d0 and d1 are the two screen buffer indexes (next and visible)
+
+; Calculate the new screen buffer addresses and update the screen pointers
+; for the infinite horizontal scrolling. Only increment the full four planes
+; when the pixel offset is 0.
                 lea screen_buffer_index, a0
                 move.l (a0, d0.w), d0
                 move.l (a0, d1.w), d1
+                move.l _screen_sliding_buffer, d4
+                tst.b _screen_pixel_offset
+                bne.s .no_increment_rolling_buffer
+                addq.l #8, d4
+                move.l d4, _screen_sliding_buffer
+.no_increment_rolling_buffer:
                 move.l _screen_base_ptr, a0
                 add.l a0, d0
                 add.l a0, d1
-                clr.b d0                            ; put on 256 byte boundary  
-                clr.b d1                            ; put on 256 byte boundary  
+                add.l d4, d0
+                add.l d4, d1
                 move.l d0, _screen_visible             ; IMPORTANT: _screen_visible is the _current_screen_mask value
-                move.l d1, _screen_next             ; IMPORTANT: _screen_next is the next _current_screen_mask value
+                move.l d1, _screen_next             ; IMPORTANT: _screen_next is the next _current_screen_mask valu
                 rts                                 
 
 _asm_main_loop:
                 movem.l d0-d7/a0-a6, -(a7)
+
+                IIF _DEBUG jsr _asm_init_nativefeatures
+
 ; Initiliaze memory
                 jsr _asm_get_memory_size
-                sub.l #_SCREEN_SIZE * _BUFFER_NUMBERS, d0
+                sub.l #_SCREEN_SIZE * (_BUFFER_NUMBERS + 1), d0
                 move.l d0, _screen_base_ptr
 
 ; Initialize the first two buffered screens
                 clr.w _current_screen_mask                          ; set the current screen mask to 0s
 
+                move.w #_SCROLL_BACKGROUND_START, _screen_pixel_offset
+
                 move.l _screen_base_ptr, a0
-                move.l  #_SCREEN_SIZE * _BUFFER_NUMBERS / (4 * 8), d0 ; Clean all the screens
+                move.l  #_SCREEN_SIZE * (_BUFFER_NUMBERS + 1) / (4 * 8), d0 ; Clean all the screens
+                move.l d0, d1
+                mulu #(4 * 8), d1
+                add.l d1, a0
                 moveq #0, d1                     ; clear with 0
                 moveq #0, d2                     ; clear with 0
                 moveq #0, d3                     ; clear with 0
@@ -77,17 +123,18 @@ _asm_main_loop:
                 moveq #0, d7                     ; clear with 0
                 move.l d1, a1                    ; clear with 0
 clean_screen_loop:
-                movem.l  d1-d7/a1, (a0)             ; move one longword to screen
-                add.l #32, a0                      ; next longword
+                movem.l  d1-d7/a1, -(a0)             ; move one longword to screen
                 dbf     d0, clean_screen_loop
 
                 jsr _asm_cook_small_sprites     ; cook the small sprites
 
-                jsr _asm_draw_tiles             ; draw the tiles on the buffers
-
                 jsr _asm_scroll_init            ; Init scroll variables
 
-                jsr _asm_music_ym_init          ; Init YM music
+                bsr tuneinit    ; Init the music
+
+                jsr _asm_init_tiles             ; Init tiles
+
+                jsr _asm_textroll_init              ; Init text roll
 
                 ; The setup_vblank only clear the initial raster and returns
                 ; the addresses of the vblank and timer B (HBL) routines in a1 and a2
@@ -97,60 +144,49 @@ clean_screen_loop:
                 bsr _asm_setup_vblank
                 bsr _asm_save_state             ; save the current state of the interrupts and screen
 
-change_screen_buffers:
-; Set the next screen address to be displayed BEFORE THE VERTICAL BLANK HAPPENS
-; IMPORTANT: _screen_next is visible AFTER the vblank interrupt
-                move.l  _screen_next, d0              
-                clr.b   $ffff820d               ; clear STe extra bit  
-                lsr.l   #8, d0    
-                move.b  d0, $ffff8203           ; put in mid screen address byte
-                lsr.w   #8, d0
-                move.b  d0, $ffff8201           ; put in high screen address byte   
-
-; WARNING: the screen_next is visible now. So we need to rotate the screen buffers before drawing anything
-                move.l _screen_visible, _screen_last
-                bsr rotate_screens              ; rotate the screen buffers. YOU SHOULD SAFELY DRAW NOW AFTER THIS POINT
-; after this routine, the screen_next is the next in the buffer and not displayed
-; IMPORTANT: _screen_visible is the _current_screen_mask value
-; IMPORTANT: _screen_next is the next _current_screen_mask value
-; IMPORTANT: _screen_next NOW IS HIDDEN 
-; IMPORTANT: so immediately after the vblank interrupt, the screen should rotate with this routine
-
 main_loop:
+
+change_screen_buffers:
 ;
 ; When entering here, _screen_next should be last hidden buffer. The VBL interrupt will change it to the visible buffer
 ;
             	tst.w	_asm_vbl_counter    ; Wait for the VBL
-		        beq.s	main_loop           ; YOU NOT SHALL PASS!!! ...until the VBL changes the state
+		        beq.s	main_loop           ; YOU SHALL NOT PASS!!! ...until the VBL changes the state
 		        clr.w	_asm_vbl_counter    ; Clear the VBL counter
+
+; WARNING: the screen_next is visible now. So we need to rotate the screen buffers before drawing anything
+                bsr rotate_screens              ; rotate the screen buffers. YOU SHOULD SAFELY DRAW NOW AFTER THIS POINT
 
                 tst.w exit_program
                 bne exit
 
-                jsr _asm_music_ym_play
+                bsr tuneinter               ; play the music
 
-                IIF _DEBUG move.w  #$002, $ff8240
+                IIF _DEBUG move.w  #$000, $ff8240
 ;
 ; All the drawing coding should START here
 ;
 
+; +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                jsr _asm_restore_textroll_bar       ; restore the text roll bar
+
                 jsr _asm_restore_all_sprites        ; restore all sprites
 
-;                jsr _asm_clean_big_sprite           ; clean the big sprite
-
-                bsr _asm_restore_background_scroll  ; restore the background scroll
-
-
-                bsr _asm_scroll_rotate              ; rotate the large scroll text
+; The screen scroll should be done when all the sprites are restored
+                jsr _asm_draw_uridium
+; After the screen scroll, it's time to draw all the sprites
 
                 jsr _asm_display_big_sprite         ; display the big sprite
 
                 jsr _asm_show_all_sprites           ; show all sprites
 
+                jsr _asm_show_textroll_bar
+; +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 ;
 ; All the drawing coding should END here
 ;
-                IIF _DEBUG move.w  #0, $ff8240
+                IIF _DEBUG move.w  #$500, $ff8240
 ; Test keys
                 cmp.b #$0A, $fffc02
                 bne.s check_key0
@@ -167,58 +203,32 @@ check_key0:
 
 check_escape:
                 cmp.b    #$01, $fffc02            ; ESC pressed?
-                bne      change_screen_buffers    ; if not, repeat main
+                bne      main_loop    ; if not, repeat main
                 move.w #1, exit_program
-                bra change_screen_buffers                
+                bra main_loop                
 
 exit:
-                jsr _asm_music_ym_exit
+                bsr tunedeinit  ; Deinit the music
                 bsr _asm_restore_state
 
                 movem.l (a7)+, d0-d7/a0-a6
                 rts
 
-;   Print the string informing of scrolling byte copy mode
-print_scroll_8_byte_copy:
-                lea print_scroll_8_byte_str, a0  ; The ASCII text to print
-                bsr.s print_all_buffers
-                rts
-
-;   Print the string informing of scrolling movep copy mode
-print_scroll_8_movep_copy:
-                lea print_scroll_8_movep_str, a0  ; The ASCII text to print
-                bsr.s print_all_buffers
-                rts
-
-;   Print the string informing of scrolling blitter copy mode
-print_scroll_8_blitter_copy:
-                lea print_scroll_8_blitter_str, a0  ; The ASCII text to print
-                bsr.s print_all_buffers
-                rts
-
-; Print over all the existing buffers
-;  a0 = Address with the string to print
-print_all_buffers:
-                movem.l d0-d1/a3, -(a7)
-                move.w #_BUFFER_NUMBERS - 1, d0
-                move.l _screen_base_ptr, d1
-                clr.b d1
-                move.l d1, a3
-                lea ((TEXT_INFO_PLANE * 2) + (TEXT_INFO_POSITION * _SCREEN_WIDTH_BYTES),a3), a3      ; The bottom of the screen
-print_next_buffer:
-                bsr _asm_print_small_str
-                lea (_SCREEN_SIZE,a3), a3
-                dbf d0, print_next_buffer
-                movem.l (a7)+, d0-d1/a3
-
-                rts
-
                 section data
 _screen_base_ptr        dc.l   0
+screen_buffer_index     
+                        REPT   _BUFFER_NUMBERS
+                        dc.l   REPTN * _SCREEN_SIZE
+                        ENDR
 _current_screen_mask    dc.w   0
+_screen_dither_tiktok   dc.w   0
 _screen_next            dc.l   0
 _screen_visible         dc.l   0
-_screen_last            dc.l   0
+_screen_pixel_offset    dc.b   0
+                        dc.b   0                      ; padding
+_screen_absolute_offset dc.b   0
+                        dc.b   0                      ; padding
+_screen_sliding_buffer  dc.l   0                      ; the sliding buffer for the horizontal scroll. Should be reinitailied on each restart
 _sprite_x               dc.w   8
 _sprite_y               dc.w   8
 _sprite_text_x          dc.w   8
@@ -226,13 +236,10 @@ _sprite_text_y          dc.w   8
 skew                    dc.w   15
 exit_program            dc.w   0    
 
-screen_buffer_index     
-                        REPT   _BUFFER_NUMBERS
-                        dc.l   REPTN * _SCREEN_SIZE
-                        ENDR
-    
-
-
 print_scroll_8_byte_str: dc.b   'BYTE COPY',0
 print_scroll_8_movep_str: dc.b  'MOVEP    ',0
 print_scroll_8_blitter_str: dc.b  'BLITTER  ',0
+print_debug_text_str: dc.b   'THIS IS A DEBUG TEST',0
+
+                section bss align 2
+

@@ -13,8 +13,8 @@ EXE = SILYDEMO.TOS
 # To disable debug, make target DEBUG_MODE=0
 DEBUG_MODE = 1
 VASMFLAGS=-Faout -quiet -x -m68000 -spaces -showopt -devpac -D_DEBUG=$(DEBUG_MODE)
-VASM = stcmd vasm 
-VLINK = stcmd vlink
+VASM = vasm 
+VLINK =  vlink
 
 # LIBCMINI PARAMETERS
 # IMPORTANT! There is functional verson of the LIBCMINI library in the docker image
@@ -24,7 +24,7 @@ VLINK = stcmd vlink
 LIBCMINI = /freemint/libcmini
 
 # GCC PARAMETERS
-CC = stcmd gcc
+CC = m68k-atari-mint-gcc
 CFLAGS=-c -std=gnu99 -I$(LIBCMINI)/include -g -D_DEBUG=$(DEBUG_MODE)
 
 # LINKER PARAMETERS
@@ -50,8 +50,13 @@ sinwaves:
 	python src/scroller.py 
 	python src/small_sprites.py
 	python src/sprite_large.py
+	python src/sprite_large_boing.py
+	python src/textroll.py
 
-clean-compile : clean init.o loader.o loop.o print.o print_s.o rasters.o scroller.o sprite_s.o sprite_l.o tiles.o ym6.o main.o
+clean-compile : clean emunat.o init.o loader.o loop.o print.o print_s.o rasters.o scroller.o sndh.o sprite_s.o sprite_l.o textroll.o tiles.o main.o
+
+emunat.o: prepare
+	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/emunat.s -o $(BUILD_DIR)/emunat.o
 
 init.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/init.s -o $(BUILD_DIR)/init.o
@@ -74,24 +79,28 @@ rasters.o: prepare
 scroller.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/scroller.s -o $(BUILD_DIR)/scroller.o
 
+sndh.o: prepare
+	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/sndh.s -o $(BUILD_DIR)/sndh.o
+
 sprite_s.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/sprite_s.s -o $(BUILD_DIR)/sprite_s.o
 
 sprite_l.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/sprite_l.s -o $(BUILD_DIR)/sprite_l.o
 
+textroll.o: prepare
+	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/textroll.s -o $(BUILD_DIR)/textroll.o
+
 tiles.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/tiles.s -o $(BUILD_DIR)/tiles.o
-
-ym6.o: prepare
-	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/ym6.s -o $(BUILD_DIR)/ym6.o
 
 # All C files
 main.o: prepare
 	$(CC) $(CFLAGS) $(SOURCES_DIR)/main.c -o $(BUILD_DIR)/main.o
 
-main: main.o init.o loader.o loop.o print.o print_s.o rasters.o  scroller.o sprite_s.o sprite_l.o tiles.o ym6.o
+main: main.o emunat.o init.o loader.o loop.o print.o print_s.o rasters.o  scroller.o sndh.o sprite_s.o sprite_l.o textroll.o tiles.o
 	$(CC) $(LIBCMINI)/lib/crt0.o \
+	      $(BUILD_DIR)/emunat.o \
 	      $(BUILD_DIR)/init.o \
 	      $(BUILD_DIR)/loader.o \
 	      $(BUILD_DIR)/loop.o \
@@ -99,10 +108,11 @@ main: main.o init.o loader.o loop.o print.o print_s.o rasters.o  scroller.o spri
 	      $(BUILD_DIR)/print_s.o \
 	      $(BUILD_DIR)/rasters.o \
 	      $(BUILD_DIR)/scroller.o \
+	      $(BUILD_DIR)/sndh.o \
 		  $(BUILD_DIR)/sprite_s.o \
 		  $(BUILD_DIR)/sprite_l.o \
+		  $(BUILD_DIR)/textroll.o \
 		  $(BUILD_DIR)/tiles.o \
-		  $(BUILD_DIR)/ym6.o \
 		  $(BUILD_DIR)/main.o \
 		  -o $(BUILD_DIR)/$(EXE) $(LINKFLAGS);
 

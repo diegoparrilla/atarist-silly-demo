@@ -7,11 +7,17 @@
     XDEF    _asm_get_machine_type
     XDEF    _asm_get_memory_size
 
+    XREF    _asm_nf_stderr
+    XREF    _asm_nf_debugger
+
                 section code
 
 
 LOOP_CYCLES     equ 615
 COPY_INCREMENT  equ 52
+;FILE_FORMAT_OFFSET equ 34     ; 34 bytes of file format header for PI1
+FILE_FORMAT_OFFSET equ 38     ; 34 bytes of file format header for PBM
+
 
 breakpoint:
                 movem.l d7/a6, -(a7)
@@ -22,25 +28,15 @@ breakpoint:
                 rts
 
 _asm_populate_bin_ptrs:
-                lea.l  _asm_font_large_ready,a0
-                move.l a0, _font_large_ready
-;                lea.l  _asm_font_large,a0
-;                move.l a0, _font_large_ptr
-                add.w #28800,a0
+                lea.l  _asm_font_small_ready,a0
                 move.l a0, _font_small_ready
-;                lea.l  _asm_font_small,a0
-;                move.l a0, _font_small_ptr
-                add.w #1280,a0
-                move.l a0, _c23_logo_ready
-;                lea.l  _asm_c23_logo,a0
-;                move.l a0, _c23_logo_ptr
                 rts
 
 
 _asm_display_picture:
                 move.l _screen, a0
                 move.l _picture, a1
-                lea (34,a1),a1
+                lea (FILE_FORMAT_OFFSET,a1),a1
 ;                lea  _asm_font_large+34, a1      ; a1 points to picture
 
 ;                moveq    #1,D7
@@ -59,7 +55,7 @@ _asm_display_picture_fast:
 
                 move.l _screen, a5
                 move.l _picture, a6
-                lea (34,a6),a6
+                lea (FILE_FORMAT_OFFSET,a6),a6
 
 ;                lea  _asm_font_large+34, a6          ; a6 points to picture
 
@@ -112,21 +108,19 @@ _asm_get_memory_size:
 
 
                 section bss
-                XDEF    _font_large_ready:
                 XDEF    _font_small_ready:
-                XDEF    _c23_logo_ready:
-                XDEF    _font_large_ptr
                 XDEF    _font_small_ptr
-                XDEF    _c23_logo_ptr
                 XDEF    _screen
                 XDEF    _picture
+                XDEF    _asm_font_c23_source_f0
+                XDEF    _asm_font_c23_source_f1
+                XDEF    _asm_font_large_ready_f0
+                XDEF    _asm_font_large_ready_f1
+                XDEF    _asm_c23_logo_ready_f0
+                XDEF    _asm_c23_logo_ready_f1
 
-_font_large_ready:  ds.l 1
 _font_small_ready:  ds.l 1
-_c23_logo_ready:    ds.l 1
-_font_large_ptr:    ds.l 1
 _font_small_ptr:    ds.l 1
-_c23_logo_ptr:      ds.l 1
 _screen:            ds.l 1
 _picture:           ds.l 1
 
@@ -136,7 +130,25 @@ C23_LOGO_WORDS              equ (C23LOGO_WIDTH_BYTES * C23LOGO_HEIGHT_LINES) / 2
 NUMBER_LARGE_FONTS          equ 48
 NUMBER_SMALL_FONTS          equ 40
 
+;_asm_font_large_ready_f0:   ds.w NUMBER_LARGE_FONTS * FONT_LARGE_SIZE_WORDS
+;_asm_font_large_ready_f1:   ds.w NUMBER_LARGE_FONTS * FONT_LARGE_SIZE_WORDS
+;_asm_c23_logo_ready_f0:     ds.w C23_LOGO_WORDS
+;_asm_c23_logo_ready_f1:     ds.w C23_LOGO_WORDS
+
                 section data align 2
-_asm_font_large_ready:
-                incbin "resources/IMAGES.BIN"
+_asm_font_small_ready:
+                incbin "resources/FONT1616.BIN"
+;_asm_font_c23_source_f0:
+;                incbin "resources/fontc23_f0_p1.rbp"
+;_asm_font_c23_source_f1:
+;                incbin "resources/fontc23_f1_p1.rbp"
+
+_asm_font_large_ready_f0:
+                incbin "resources/F3225_P0.BIN"
+_asm_font_large_ready_f1:
+                incbin "resources/F3225_P1.BIN"
+_asm_c23_logo_ready_f0:
+                incbin "resources/C23LG_P0.BIN"
+_asm_c23_logo_ready_f1:
+                incbin "resources/C23LG_P1.BIN"
 
