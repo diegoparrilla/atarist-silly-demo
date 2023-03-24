@@ -2,16 +2,23 @@
 
     XDEF    _asm_scroll_init
     XDEF    _asm_scroll_rotate
-    XDEF    _asm_restore_background_scroll
     XREF    _screen_next
     XREF    _current_screen_mask        ; The buffered screen index
-    XREF    _font_large_ready
+    XREF    _screen_absolute_offset
+    XREF    _screen_pixel_offset
+    XREF    _screen_dither_tiktok
+    XREF    _raster_y_pos_start
+    XREF    _asm_font_large_ready_f0
+    XREF    _asm_font_large_ready_f1
 
                 ; Scrolling section
 
 FONT_LARGE_SIZE         equ 600
 FONT_HEIGHT             equ 25
-MAX_WIDTH_SIZE          equ 9      ; MAX_WIDTH_SIZE + 1 chars per line
+FONT_WIDTH              equ 6
+DELETE_BAR_HEIGHT       equ 8
+DST_WIDTH               EQU FONT_WIDTH * _SCREEN_BITPLANES
+MAX_WIDTH_SIZE          equ 11      ; MAX_WIDTH_SIZE + 1 chars per line
 SCROLL_SPEED            equ 4      ; Bits to rotate the scroll. Must be 2^n
 
                 section code
@@ -37,11 +44,17 @@ _asm_scroll_rotate:
                 addq #2, d7
                 move.w d7, scroll_y_pointer     ; Store the next value for the future
                 move.w (a5), d7
+                move.l _raster_y_pos_start, _raster_y_pos_start + 4
+                move.w d7, _raster_y_pos_start  ; Set the raster start Y position
+                move.w d7, d0
+                add.w #FONT_HEIGHT - 2, d0      ; Minus 2 because the raster is 2 pixels before the real start
+                move.w d0, _raster_y_pos_start + 2    ; Set the raster end Y position
+
 ; d2 -> The memory offset to start to print the scroll (X=0, Y=(0..175))
 
 ; Exctract the next char to print from the demo text
                 move.l demo_text_ptr,a0     ; We assume the _asm_scroll_init has been called before!
-                move.b (9,a0), d1
+                move.b (MAX_WIDTH_SIZE,a0), d1
                 tst.b d1                    ; If we are at the end of the scroll text, load init and start again
                 bne.s .not_end_col
                 lea demo_text, a0           ; The ASCII text to demo
@@ -50,22 +63,27 @@ _asm_scroll_rotate:
 
 ; a6 -> The font to print memory address
                 move.l _screen_next, a1; The screen position to print
-                lsl.w	#4,d7                    ; Equivalent to: mulu #_SCREEN_WIDTH_BYTES, d7
-                move.w	d7,d3
-                add.w	d7,d7
-                add.w	d7,d7
-                add.w	d3,d7
-                add.w	d7,d7                    ; Till here  
+                mulu #_SCREEN_WIDTH_BYTES, d7  
 
                 move.w scroll_shift, d3
+                add.b _screen_pixel_offset, d3
+
                 lsr.w #4, d3
                 add.w d3, d3
                 add.w d3, d3
                 add.w d3, d3
                 add.w d3, a1                 ; Move 16 bits to the left for bits 16 to 31
 
-                sub.w #16,a1
                 lea ascii_index, a2         ; The translation table from ASCII to local encoding 
+
+                lea (a1, d7),a5
+                sub.l #_SCREEN_WIDTH_BYTES * DELETE_BAR_HEIGHT, a5
+                bsr delete_upper_lower_scroll
+                add.l #_SCREEN_WIDTH_BYTES * (FONT_HEIGHT + DELETE_BAR_HEIGHT) , a5
+                bsr delete_upper_lower_scroll
+
+                sub.w #16,a1
+                sub.w #16,a1                 ; Disappear behind the line offset
 
                 REPT MAX_WIDTH_SIZE
 
@@ -75,14 +93,17 @@ _asm_scroll_rotate:
                 move.b (a2,d1),d1           ; get the char from ascii to custom encoding
                 mulu.w #FONT_LARGE_SIZE_WORDS * 2,d1  ; each char 'cost' FONT_LARGE_SIZE_WORDS bytes.
 
-                move.l _font_large_ready, a6
+                bsr get_dithered_font
+
                 add.w d1, a6                 ; a6 -> font memory
 
                 move.w scroll_shift, d0
+                add.b _screen_pixel_offset, d0
                 and.w #15,d0                    ; d0 -> the bit shift (skew)
                 move.w #REPTN, d1               ; d1 -> the char index
                 add.w #16, a1
                 lea (a1, d7),a5
+
                 bsr print_font32x25_blitter
 
                 ENDR 
@@ -95,6 +116,14 @@ _asm_scroll_rotate:
                 subq.w #SCROLL_SPEED, d0
                 and.w #31, d0
                 move.w d0, scroll_shift
+                rts
+
+get_dithered_font:
+                tst.w _screen_dither_tiktok
+                bne.s .dither_f1
+                lea _asm_font_large_ready_f0, a6
+                rts
+.dither_f1:     lea _asm_font_large_ready_f1, a6
                 rts
 
 ; Right end mask for the blitter
@@ -136,7 +165,7 @@ print_font32x25_blitter:
                 move.l a5, (a4)                 ; Store the screen address in the background buffer
 
                 move.w     d0,d2                        ; d2 <- skew position
-                add.w d2,d2                             ; d2 <- skew position * 2
+                add.w      d2,d2                        ; d2 <- skew position * 2
                 move.w    rt_endmask(pc,d2.w),d2        ; d2 <- obtain the end data mask
 
                 or.b #%11000000, d0
@@ -144,7 +173,7 @@ print_font32x25_blitter:
                 move.w #8, SRC_X_INCREMENT(a3) ; source X increment. Jump 3 (2 + 2 + 2) planes.
                 move.w #8, SRC_Y_INCREMENT(a3) ; source Y increment. Increase the 4 planes.
                 move.w #8, DEST_X_INCREMENT(a3) ; dest X increment. Jump 3 (2 + 2 +2) planes.
-                move.w #144, DEST_Y_INCREMENT(a3) ; dest Y increment. Increase the 4 planes.
+                move.w #(_SCREEN_WIDTH_BYTES - DST_WIDTH + 2 * _SCREEN_BITPLANES), DEST_Y_INCREMENT(a3) ; dest Y increment. Increase the 4 planes.
                 move.w #3, BLOCK_X_COUNT(a3) ; block X count. It seems don't need to reinitialize every bitplane.
                 move.w #$FFFF, ENDMASK2_REG(a3) ; endmask2 register
                 move.w d2, ENDMASK3_REG(a3) ; endmask3 register. The mask should covers the char column.
@@ -159,69 +188,61 @@ print_font32x25_blitter:
                 move.l a5, DEST_ADDR(a3) ; destination address
                 move.w #FONT_HEIGHT, BLOCK_Y_COUNT(a3) ; block Y count. This one must be reinitialized every bitplane
                 move.b #HOG_MODE, BLITTER_CONTROL_REG(a3) ; Hog mode
+                addq.w #2, a6               ; Next bitplane src
+                addq.w #2, a5               ; Next bitplane dest
 
                 ; copy second plane
-                addq.w #2, a6               ; Next bitplane src
-                addq.w #2, a5               ; Next bitplane dest
                 move.l a6, SRC_ADDR(a3)  ; source address
                 move.l a5, DEST_ADDR(a3) ; destination address
                 move.w #FONT_HEIGHT, BLOCK_Y_COUNT(a3) ; block Y count. This one must be reinitialized every bitplane
                 move.b #HOG_MODE, BLITTER_CONTROL_REG(a3) ; Hog mode
+                addq.w #2, a6               ; Next bitplane src
+                addq.w #2, a5               ; Next bitplane dest
 
                 ; copy third plane
-                addq.w #2, a6               ; Next bitplane src
-                addq.w #2, a5               ; Next bitplane dest
                 move.l a6, SRC_ADDR(a3)  ; source address
                 move.l a5, DEST_ADDR(a3) ; destination address
                 move.w #FONT_HEIGHT, BLOCK_Y_COUNT(a3) ; block Y count. This one must be reinitialized every bitplane
                 move.b #HOG_MODE, BLITTER_CONTROL_REG(a3) ; Hog mode
 
-                
                 rts
 
 ;  Delete the full scroll block from the screen
-_asm_restore_background_scroll:
-        lea scroll_bckgrnd_idx, a5      ; a5 <- background index buffer
-        move.w _current_screen_mask, d2 ; d2 <- current screen mask
-        add.w d2,d2                     ; d2 <- current screen mask * 2
-        add.w d2,d2                     ; d2 <- current screen mask * 4
-        add.w d2, a5                    ; a5 <- background index buffer + current screen mask * 4 + (char index * BUFFER_NUMBERS * 4)
-        move.l (a5), a5                 ; a4 <- get the address of the background buffer for the char
-        cmp.l #0, a5                    ; if the address is 0, then the char is not on the screen yet
-        bne.s .do_clean_full_scroll_blitter  ; so we can skip the blitter
-        rts
-
-.do_clean_full_scroll_blitter:
+;  Need to pass:
+;  a5 = screen address
+delete_upper_lower_scroll:
         ; we are zeroing old buffer, so we dont need a source address to configure the blitter
-        lea  $FF8A00,a6          ; a6-> BLiTTER register block
-        move.w #8, DEST_X_INCREMENT(a6) ; dest X increment. Jump 3 (2 + 2 +2) planes.
-        move.w #8, DEST_Y_INCREMENT(a6) ; dest Y increment. Increase the 4 planes.
-        move.w #20, BLOCK_X_COUNT(a6) ; block X count. It seems don't need to reinitialize every bitplane.
-        move.w #$FFFF, ENDMASK1_REG(a6) ; endmask1 register
-        move.w #$FFFF, ENDMASK2_REG(a6) ; endmask2 register
-        move.w #$FFFF, ENDMASK3_REG(a6) ; endmask3 register. 
-        move.b #$0, BLITTER_HOP(a6) ; blitter HOP operation. Zeroing the destination.
-        move.b #$0, BLITTER_OPERATION(a6) ; blitter operation. Zeroing the destination.
-        move.b #%00000000, BLITTER_SKEW(a6) ; blitter skew: No skew
+        lea  $FF8A00,a4          ; a4-> BLiTTER register block
+        move.w #8, DEST_X_INCREMENT(a4) ; dest X increment. Jump 3 (2 + 2 +2) planes.
+        move.w #(_SCREEN_WIDTH_BYTES - 176 + 2 * _SCREEN_BITPLANES), DEST_Y_INCREMENT(a4) ; dest Y increment. Increase the 4 planes.
+        move.w #(MAX_WIDTH_SIZE*2), BLOCK_X_COUNT(a4) ; block X count. It seems don't need to reinitialize every bitplane.
+        move.w #$FFFF, ENDMASK1_REG(a4) ; endmask1 register
+        move.w #$FFFF, ENDMASK2_REG(a4) ; endmask2 register
+        move.w #$FFFF, ENDMASK3_REG(a4) ; endmask3 register. 
+        move.b #$0, BLITTER_HOP(a4) ; blitter HOP operation. Zeroing the destination.
+        move.b #$0, BLITTER_OPERATION(a4) ; blitter operation. Zeroing the destination.
+        move.b #%00000000, BLITTER_SKEW(a4) ; blitter skew: No skew
 
         ; Repeat three times for the three planes
         ; first plane
-        move.l a5, DEST_ADDR(a6)                                ; destination address
-        move.w #FONT_HEIGHT, BLOCK_Y_COUNT(a6)                           ; block Y count. This one must be reinitialized every bitplane
-        move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
-        ; second plane
+        move.l a5, DEST_ADDR(a4)                                ; destination address
+        move.w #DELETE_BAR_HEIGHT, BLOCK_Y_COUNT(a4)                           ; block Y count. This one must be reinitialized every bitplane
+        move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
         addq.w #2, a5                                           ; Next bitplane dest
-        move.l a5, DEST_ADDR(a6)                                ; destination address
-        move.w #FONT_HEIGHT, BLOCK_Y_COUNT(a6)                           ; block Y count. This one must be reinitialized every bitplane
-        move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
-        ; third plane
-        addq.w #2, a5                                           ; Next bitplane dest
-        move.l a5, DEST_ADDR(a6)                                ; destination address
-        move.w #FONT_HEIGHT, BLOCK_Y_COUNT(a6)                           ; block Y count. This one must be reinitialized every bitplane
-        move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
-                                                                ; Quit if the BUSY flag was clear.  
-        rts
 
+        ; second plane
+        move.l a5, DEST_ADDR(a4)                                ; destination address
+        move.w #DELETE_BAR_HEIGHT, BLOCK_Y_COUNT(a4)                           ; block Y count. This one must be reinitialized every bitplane
+        move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
+        addq.w #2, a5                                           ; Next bitplane dest
+        ; third plane
+
+        move.l a5, DEST_ADDR(a4)                                ; destination address
+        move.w #DELETE_BAR_HEIGHT, BLOCK_Y_COUNT(a4)                           ; block Y count. This one must be reinitialized every bitplane
+        move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
+
+        subq #4, a5
+        rts
 
 
                 section bss
@@ -239,6 +260,8 @@ scroll_y_pointer: dc.w 0  ; Current pointer to the scroll_y_pos table. Even word
 
 
 scroll_shift:   dc.w    0
+scroll_last_y:  dc.w    0
+
 
 ascii_index:                                                   ; Index table to translate ASCII to chars
                 dc.b 47, 26, 40, 47,47, 47, 47, 46, 41, 42     ; SPACE, !, ", #, $, %, &, ', (, )
