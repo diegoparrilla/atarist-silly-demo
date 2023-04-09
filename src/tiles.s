@@ -13,7 +13,7 @@ TILE_HEIGHT     EQU 32
 BITPLANES       EQU 1
 BITPLANES_SKIP  EQU 3
 BYTES_PER_PLANE EQU 2
-TILES_HEIGHT_SCREEN EQU (_SCREEN_PHYSICAL_HEIGHT_LINES / TILE_HEIGHT)
+TILES_HEIGHT_SCREEN EQU (_SCREEN_VISIBLE_HEIGHT_LINES / TILE_HEIGHT)
 
 URIDIUM_TILE_WIDTH      EQU 4
 URIDIUM_DST_WIDTH       EQU URIDIUM_TILE_WIDTH * _SCREEN_BITPLANES
@@ -99,7 +99,7 @@ _asm_draw_uridium:
 .next_tile_uridium:
                     move.w d7, tiles_offset
 .ignore_next_tile_uridium:
-                    lsr.w #1, d0
+                    lsr.w #_SCROLL_BACKGROUND_SPEED, d0
                     beq.s .repaint_uridium_tiles
                     rts
 

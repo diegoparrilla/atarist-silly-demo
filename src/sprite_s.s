@@ -34,6 +34,18 @@ SPRITE_SIZE_BACKGROUND_SHIFTS equ 8 ; 2 ^ SPRITE_SIZE_BACKGROUND_SHIFTS should b
 
                 section code
 
+                MACRO BLIT_MODE
+                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a4)    ; << START THE BLITTER >>
+.\@wait_blitter:
+                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+                    nop                      ; flag state.  The "nop" is executed
+                    bne.s  .\@wait_blitter     ; prior to the BLiTTER restarting.
+                ENDM
+
+                MACRO HOG_MODE
+                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
+                ENDM
+
 ; Convert the 16x16x1 fonts to 32x16x2 plus 16 rotations for old school games
 ; 1 bitplane for the sprite and 1 bitplane for the mask
 _asm_cook_small_sprites:
@@ -236,7 +248,7 @@ restore_sprite_background_blitter:
                     move.l a2, SRC_ADDR(a4)  ; source address
                     move.l a3, DEST_ADDR(a4) ; destination address
                     move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
+                    BLIT_MODE
                     addq.w #2, a2               ; Next bitplane src
                     addq.w #2, a3               ; Next bitplane dest
                     ENDR
@@ -353,7 +365,7 @@ display_sprite_xy:
                     move.l a2, SRC_ADDR(a4)  ; source address
                     move.l a1, DEST_ADDR(a4) ; destination address
                     move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a4) ; Hog mode
+                    BLIT_MODE
 
                     ; Next bitplane dest 
                     addq.w #2, a1            ; Next bitplane dest

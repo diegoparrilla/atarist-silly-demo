@@ -52,8 +52,9 @@ sinwaves:
 	python src/sprite_large.py
 	python src/sprite_large_boing.py
 	python src/textroll.py
+	python src/megascrl.py
 
-clean-compile : clean emunat.o init.o loader.o loop.o print.o print_s.o rasters.o scroller.o sndh.o sprite_s.o sprite_l.o textroll.o tiles.o main.o
+clean-compile : clean emunat.o init.o loader.o loop.o megascrl.o print.o print_s.o rasters.o scroller.o sndh.o sprite_s.o sprite_l.o textroll.o tiles.o main.o
 
 emunat.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/emunat.s -o $(BUILD_DIR)/emunat.o
@@ -66,6 +67,9 @@ loader.o: prepare
 
 loop.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/loop.s -o $(BUILD_DIR)/loop.o
+
+megascrl.o: prepare
+	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/megascrl.s -o $(BUILD_DIR)/megascrl.o
 
 print.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/print.s -o $(BUILD_DIR)/print.o
@@ -98,12 +102,13 @@ tiles.o: prepare
 main.o: prepare
 	$(CC) $(CFLAGS) $(SOURCES_DIR)/main.c -o $(BUILD_DIR)/main.o
 
-main: main.o emunat.o init.o loader.o loop.o print.o print_s.o rasters.o  scroller.o sndh.o sprite_s.o sprite_l.o textroll.o tiles.o
+main: main.o emunat.o init.o loader.o loop.o megascrl.o print.o print_s.o rasters.o  scroller.o sndh.o sprite_s.o sprite_l.o textroll.o tiles.o
 	$(CC) $(LIBCMINI)/lib/crt0.o \
 	      $(BUILD_DIR)/emunat.o \
 	      $(BUILD_DIR)/init.o \
 	      $(BUILD_DIR)/loader.o \
 	      $(BUILD_DIR)/loop.o \
+		  $(BUILD_DIR)/megascrl.o \
 	      $(BUILD_DIR)/print.o \
 	      $(BUILD_DIR)/print_s.o \
 	      $(BUILD_DIR)/rasters.o \

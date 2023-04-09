@@ -56,11 +56,10 @@ _asm_save_state:
 		move.b  $fffffa13.w,save_inta_mask	;Save MFP state for interrupt mask A
 		move.b	$fffffa09.w,save_intb		;Save MFP state for interrupt enable B
 		move.b	$fffffa15.w,save_intb_mask	;Save MFP state for interrupt mask B
-;		clr.b	$fffffa07.w			;Interrupt enable A (Timer-A & B)
-;        move.b #-1, $fffffa07.w
-;		clr.b	$fffffa13.w			;Interrupt mask A (Timer-A & B)
-;		clr.b	$fffffa09.w			;Interrupt enable B (Timer-C & D)
-;		clr.b	$fffffa15.w			;Interrupt mask B (Timer-C & D)
+		clr.b	$fffffa07.w			;Interrupt enable A (Timer-A & B)
+		clr.b	$fffffa13.w			;Interrupt mask A (Timer-A & B)
+		clr.b	$fffffa09.w			;Interrupt enable B (Timer-C & D)
+		clr.b	$fffffa15.w			;Interrupt mask B (Timer-C & D)
 		move.w	#$2300,sr			;Interrupts back on
 
 		move.b	#$12,$fffffc02.w		;Kill mouse

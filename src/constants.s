@@ -3,16 +3,18 @@
 ; They must start with an underscore and a letter
 
 _BUFFER_NUMBERS                     equ     2           ; number of buffers to use. Only power of 2 allowed (2, 4, 8, 16...)
-_SCROLL_BACKGROUND_SPEED            equ     1           ; 1 = 1 pixel per frame, 2 = 2 pixels per frame, etc. Use 2^n values
+_SCROLL_BACKGROUND_SPEED            equ     4           ; 1 = 1 pixel per frame, 2 = 2 pixels per frame, etc. Use 2^n values
 _SCROLL_BACKGROUND_START            equ     0           ; Start at odd address to avoid the 'jump' when the pixel offset is 0
-_SCREEN_SIZE                        equ     _SCREEN_WIDTH_BYTES * _SCREEN_PHYSICAL_HEIGHT_LINES       ; size of the screen in bytes
+_SCREEN_SIZE                        equ     _SCREEN_WIDTH_BYTES * _SCREEN_VISIBLE_HEIGHT_LINES       ; size of the visible screen in bytes
 _SCREEN_L_OFFSET_BYTES              equ     24           ; value how many BYTES the Shifter is supposed to skip after each Rasterline
 _SCREEN_L_OFFSET_WORDS              equ     _SCREEN_L_OFFSET_BYTES / 2    ; Same value in WORDS, needed by the register
 _SCREEN_WIDTH_NO_L_OFFSET_BYTES     equ     160  ; width of a screen line in bytes
 _SCREEN_WIDTH_BYTES                 equ     _SCREEN_WIDTH_NO_L_OFFSET_BYTES + _SCREEN_L_OFFSET_BYTES         ; width of a screen line in bytes
 _SCREEN_HEIGHT_LINES                equ     192         ; height of the visible screen in lines
-_SCREEN_PHYSICAL_HEIGHT_LINES       equ     200         ; height of the physical screen in lines
+_SCREEN_VISIBLE_HEIGHT_LINES       equ      200         ; height of the visible screen in lines
 _SCREEN_BITPLANES                   equ     4           ; number of bitplanes
+_SCREEN_PHYS_HEIGHT_LINES           equ     236         ; height of the physical screen in lines
+_SCREEN_PHYS_SIZE                   equ     _SCREEN_WIDTH_BYTES * _SCREEN_PHYS_HEIGHT_LINES * _SCREEN_BITPLANES       ; size of the physical screen in bytes
 
 ; Font large 
 FONT_LARGE_SIZE_WORDS   equ     600 / 2         ; 25 lines x 6 bytes x 4 planes (last empty)

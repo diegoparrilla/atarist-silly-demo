@@ -10,7 +10,7 @@ lines = []
 lines.append("sprite_boing:\n")
 
 # Let's start simply waiting for a few seconds
-start_position = 120
+start_position = 0
 frames = FRAMES_PER_SECOND * 0  # 0 seconds
 for i in range(frames):
     lines.append("                dc.w %i\n" % start_position)
@@ -24,23 +24,28 @@ for i in range(frames):
 #         y = abs((math.cos(math.radians(x)) * amplitude) + start_position)
 #         lines.append(f"                dc.w {int(y)}\n")
 
-entries = 360
-amplitude = 192 - 65  # The amplitude of the sine wave
+entries = 410
+amplitude = 192 - 72  # The amplitude of the sine wave
 start_position = amplitude  # The X axis position 0 is at start_position
 for x in range(entries):
-    y = start_position - abs(amplitude * math.cos(2 * math.radians(x))) * (
+    y = start_position - abs(amplitude * math.cos(1.1 * math.radians(x))) * (
         math.e ** (-math.radians(x) / 4)
     )
     lines.append(f"                dc.w {int(y)}\n")
 
-entries = 360
-amplitude = 192 - 65  # The amplitude of the sine wave
+entries = 410
+amplitude = 192 - 72  # The amplitude of the sine wave
 start_position = amplitude  # The X axis position 0 is at start_position
 for x in range(entries, 1, -1):
-    y = start_position - abs(amplitude * math.cos(2 * math.radians(x))) * (
+    y = start_position - abs(amplitude * math.cos(1.1 * math.radians(x))) * (
         math.e ** (-math.radians(x) / 4)
     )
     lines.append(f"                dc.w {int(y)}\n")
+
+start_position = 0
+frames = int(FRAMES_PER_SECOND * 0.1)  # 0.1 seconds
+for i in range(frames):
+    lines.append("                dc.w %i\n" % start_position)
 
 # Write the array to the file out to the folder src/scroller.inc
 with open("src/sprite_b.inc", "w") as f:
