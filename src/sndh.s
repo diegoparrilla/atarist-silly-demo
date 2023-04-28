@@ -1,27 +1,48 @@
-                    opt     CHKPC                           ;make sure PC relative code    (only required for SNDH or binary file)
 
                     XDEF   tuneinit
                     XDEF   tunedeinit
                     XDEF   tuneinter
+                    XDEF   tuneconfig
 
-                    section text
+tuneconfig:
+                    move.l #replayroutine1, tuneinit_index
+                    move.l #replayroutine2, tuneinit_index+4
+                    move.l #replayroutine1+4, tunedeinit_index
+                    move.l #replayroutine2+4, tunedeinit_index+4
+                    move.l #replayroutine1+8, tuneinter_index
+                    move.l #replayroutine2+8, tuneinter_index+4
+                    rts
+
 ;..................................................................................
 ;header - for binary and sndh dont forget to trim away the $1C byte TOS header after compilation
 
+                    opt     CHKPC                           ;make sure PC relative code    (only required for SNDH or binary file)
+; Pass the tune number in d0.w in any parameter register
 tuneinit:
-                    bra.s  replayroutine
+                    add.w d0,d0
+                    add.w d0,d0
+                    move.l tuneinit_index(pc, d0.w), a0
+                    jmp (a0)
 
 tunedeinit:
-                    bra.s  replayroutine+4
+                    add.w d0,d0
+                    add.w d0,d0
+                    move.l tunedeinit_index(pc, d0.w), a0
+                    jmp (a0)
 
 tuneinter:
-                    bra.s  replayroutine+8
+                    add.w d0,d0
+                    add.w d0,d0
+                    move.l tuneinter_index(pc, d0.w), a0
+                    jmp (a0)
 
                     even
+tuneinit_index:     ds.l 4
+tunedeinit_index:   ds.l 4
+tuneinter_index:    ds.l 4
 
 ;..................................................................................
 ;Include files
-;replayroutine:          incbin resources/TEST_STE.SND
 
 ;replayroutine:      incbin  resources/MYM_REPL.BIN         ;+$0    =init
                                                             ;+$4    =deinit
@@ -29,9 +50,13 @@ tuneinter:
                                                             ;+$C    =adjust global volume with d0.w 0->127
                                                             ;+$10.b =zync code
                     even
-replayroutine:          incbin  resources/HER1.SND
-;replayroutine:          incbin  resources/TELEPHON.SND
-;replayroutine:          incbin  resources/PWMWVJAM.SND
-;replayroutine:          incbin  resources/DULCEDO.SND
-;replayroutine:          incbin  resources/HYBRIS.SND
-;replayroutine:          incbin  resources/OKS.SND
+replayroutine1:          incbin  resources/HER1TA.SND
+replayroutine2:          incbin  resources/TELEPHTA.SND
+;replayroutine3:          incbin  resources/PWMWVJAM.SND
+;replayroutine4:          incbin  resources/MODMATAD.SND
+;replayroutine3:          incbin  resources/DULCEDO.SND
+;replayroutine4:          incbin  resources/HYBRIS.SND
+;replayroutine4:          incbin  resources/OKS.SND;
+;replayroutine4:          incbin  resources/SERGANT.SND
+;replayroutine3:          incbin  resources/ALLESNUR.SND
+;replayroutine3:          incbin  resources/SEQUENCE.SND
