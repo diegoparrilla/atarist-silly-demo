@@ -17,17 +17,17 @@
                 ; Scrolling section
 
 FONT_REAL_HEIGHT        equ 25
-FONT_HEIGHT             equ 32
+FONT_HEIGHT             equ 30
 FONT_BITPLANES          equ 4
 FONT_VISIBLE_BITPLANES  equ 4
 FONT_WIDTH              equ 6 * FONT_BITPLANES ; 6 bytes per char (32 pixels + 16 buffer) x 4 bitplanes
 FONT_VISIBLE_WIDTH      equ 4 * FONT_VISIBLE_BITPLANES ; 4 bytes per char (32 pixels) x 3 bitplanes + 1 mask bitplane
 FONT_LARGE_SIZE_NO_GUARDS   equ FONT_REAL_HEIGHT * FONT_WIDTH
 FONT_LARGE_SIZE         equ FONT_HEIGHT * FONT_WIDTH
-TEXT_ROLL_LENGTH        equ 100; 100 chars in demo_text + 1 for the end of string
+TEXT_ROLL_LENGTH        equ 92; 90 chars in demo_text + 1 for the end of string
 MEMORY_BUFFER_WIDTH_BYTES equ TEXT_ROLL_LENGTH * FONT_VISIBLE_WIDTH
 SCROLL_SPEED            equ 2      ; Bits to rotate the scroll. Must be 2^n
-TEXT_ROLL_BUFFERS       equ 32      ; Number of buffers to use for the text roll
+TEXT_ROLL_BUFFERS       equ 40     ; Number of buffers to rotate the text roll
 
                 section code
 
@@ -461,8 +461,7 @@ ascii_index:                                                   ; Index table to 
                 dc.b 7, 8, 9, 10, 11, 12, 13, 14, 15, 16       ; H, I, J, K, L, M, N, O, P, Q
                 dc.b 17, 18, 19, 20, 21, 22, 23, 24, 25        ; R, S, T, U, V, W, X, Y, Z
 
-;demo_text:      dc.b "          THIS IS THE ATARI ST SILLY DEMO. A SIMPLE DEMO ONLY TO REFRESH MY M68K CODING SKILLS AND WASTE TIME DOING USELESS STUFF THAT NOBODY CARES",0
-demo_text:      dc.b "          PRESS 1 TO 4 TO CHANGE THE CHIPTUNE - PRESS 9 AND 0 TO CHANGE THE SPEED OF THE BACKGROUND ",0
+demo_text:      dc.b "          PRESS 1 OR 2 TO CHANGE THE CHIPTUNE - PRESS 7 TO 0 TO CHANGE THE BACKGROUND SPEED ",0
 
                 EVEN
 

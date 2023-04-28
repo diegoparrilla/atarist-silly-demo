@@ -15,10 +15,10 @@ lines.append("textroll_sinwave:\n")
 # for i in range(frames):
 #     lines.append("                dc.w %i\n" % start_position_y)
 
-entries = 32
+entries = 40
 for j in range(1):
-    start_position = 4  # The X axis position 0 is at start_position
-    amplitude = 3  # The amplitude of the sine wave
+    start_position = 3  # The X axis position 0 is at start_position
+    amplitude = 2.5  # The amplitude of the sine wave
     for i in range(entries):
         x = i * 180 / (entries / 2)
         y = (math.sin(math.radians(x)) * amplitude) + start_position
