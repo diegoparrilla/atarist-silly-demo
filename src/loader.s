@@ -130,19 +130,9 @@ C23_LOGO_WORDS              equ (C23LOGO_WIDTH_BYTES * C23LOGO_HEIGHT_LINES) / 2
 NUMBER_LARGE_FONTS          equ 48
 NUMBER_SMALL_FONTS          equ 40
 
-;_asm_font_large_ready_f0:   ds.w NUMBER_LARGE_FONTS * FONT_LARGE_SIZE_WORDS
-;_asm_font_large_ready_f1:   ds.w NUMBER_LARGE_FONTS * FONT_LARGE_SIZE_WORDS
-;_asm_c23_logo_ready_f0:     ds.w C23_LOGO_WORDS
-;_asm_c23_logo_ready_f1:     ds.w C23_LOGO_WORDS
-
                 section data align 2
 _asm_font_small_ready:
                 incbin "resources/FONT1616.BIN"
-;_asm_font_c23_source_f0:
-;                incbin "resources/fontc23_f0_p1.rbp"
-;_asm_font_c23_source_f1:
-;                incbin "resources/fontc23_f1_p1.rbp"
-
 _asm_font_large_ready_f0:
                 incbin "resources/F3225_P0.BIN"
 _asm_font_large_ready_f1:
