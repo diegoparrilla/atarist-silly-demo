@@ -31,6 +31,7 @@ SPRITE_SIZE_WITH_SHIFT  equ (DST_WIDTH * DST_HEIGHT * (BITPLANES + MASKPLANES) *
 SPRITE_SIZE_ORIGINAL    equ (SRC_WIDTH * SRC_HEIGHT * BITPLANES * 2)              ; Size of the original sprite (1 bitplane 16 bits 16 lines) in bytes
 SPRITE_SIZE_BACKGROUND  equ (DST_WIDTH * DST_HEIGHT * BACKGROUND_BITPLANES) * 2 ; Size of the background of the sprite (2 bitplanes 16 bits 16 lines)    
 SPRITE_SIZE_BACKGROUND_SHIFTS equ 8 ; 2 ^ SPRITE_SIZE_BACKGROUND_SHIFTS should be the SPRITE_SIZE_BACKGROUND value
+MANUAL_OFFSET_X_AXIS    equ 16 * 3      ; Manual offset in pixels of all  sprites in the X axis    
 
                 section code
 
@@ -114,51 +115,69 @@ _asm_show_all_sprites:
                 moveq #0, d3                        ; sprite index number
                 jsr display_sprite_xy      ; display the flying small sprites
 
+;                move.w (16, a5), d0                 ; Get the X position
+;                move.w (16, a6), d1                 ; Get the Y position
+;                add.w #16,d0
+;                moveq #0, d2                        ; sprite number for 'A'
+;                moveq #1, d3                        ; sprite index number
+;                jsr display_sprite_xy      ; display the flying small sprites
+
+;                move.w (24, a5), d0                 ; Get the X position
+;                move.w (24, a6), d1                 ; Get the Y position
+;                add.w #32,d0
+;                moveq #13, d2                        ; sprite number for 'N'
+;                moveq #2, d3                        ; sprite index number
+;                jsr display_sprite_xy      ; display the flying small sprites
+;
+;                move.w (32, a5), d0                 ; Get the X position
+;                move.w (32, a6), d1                 ; Get the Y position
+;                add.w #48,d0
+;                moveq #0, d2                        ; sprite number for 'A'
+;                moveq #3, d3                        ; sprite index number
+;                jsr display_sprite_xy      ; display the flying small sprites
+;                rts
+
+;                move.w (40, a5), d0                 ; Get the X position
+;                move.w (40, a6), d1                 ; Get the Y position
+;                add.w #64,d0
+;                moveq #11, d2                        ; sprite number for 'L'
+;                moveq #4, d3                        ; sprite index number
+;                jsr display_sprite_xy      ; display the flying small sprites
+;
+;                move.w (56, a5), d0                 ; Get the X position
+;                move.w (56, a6), d1                 ; Get the Y position
+;                add.w #96,d0
+;                moveq #27, d2                        ; sprite number for '2'
+;                moveq #5, d3                        ; sprite index number
+;                jsr display_sprite_xy      ; display the flying small sprites
+
+;                move.w (64, a5), d0                 ; Get the X position
+;                move.w (64, a6), d1                 ; Get the Y position
+;                add.w #112,d0
+;                moveq #28, d2                        ; sprite number for '3'
+;                moveq #6, d3                        ; sprite index number
+;                jsr display_sprite_xy      ; display the flying small sprites
+
+
+; No more time in the VBL so we have display only 3 sprites (C is not modified)
                 move.w (16, a5), d0                 ; Get the X position
                 move.w (16, a6), d1                 ; Get the Y position
                 add.w #16,d0
-                moveq #0, d2                        ; sprite number for 'A'
+                moveq #27, d2                        ; sprite number for '3'
                 moveq #1, d3                        ; sprite index number
                 jsr display_sprite_xy      ; display the flying small sprites
 
                 move.w (24, a5), d0                 ; Get the X position
                 move.w (24, a6), d1                 ; Get the Y position
                 add.w #32,d0
-                moveq #13, d2                        ; sprite number for 'N'
+                moveq #28, d2                        ; sprite number for '3'
                 moveq #2, d3                        ; sprite index number
                 jsr display_sprite_xy      ; display the flying small sprites
 
-                move.w (32, a5), d0                 ; Get the X position
-                move.w (32, a6), d1                 ; Get the Y position
-                add.w #48,d0
-                moveq #0, d2                        ; sprite number for 'A'
-                moveq #3, d3                        ; sprite index number
-                jsr display_sprite_xy      ; display the flying small sprites
-
-                move.w (40, a5), d0                 ; Get the X position
-                move.w (40, a6), d1                 ; Get the Y position
-                add.w #64,d0
-                moveq #11, d2                        ; sprite number for 'L'
-                moveq #4, d3                        ; sprite index number
-                jsr display_sprite_xy      ; display the flying small sprites
-
-                move.w (56, a5), d0                 ; Get the X position
-                move.w (56, a6), d1                 ; Get the Y position
-                add.w #96,d0
-                moveq #27, d2                        ; sprite number for '2'
-                moveq #5, d3                        ; sprite index number
-                jsr display_sprite_xy      ; display the flying small sprites
-
-                move.w (64, a5), d0                 ; Get the X position
-                move.w (64, a6), d1                 ; Get the Y position
-                add.w #112,d0
-                moveq #28, d2                        ; sprite number for '3'
-                moveq #6, d3                        ; sprite index number
-                jsr display_sprite_xy      ; display the flying small sprites
                 rts
 
 _asm_restore_all_sprites:
-                move.w #6, d7
+                move.w #2, d7
 .loop_restore_all_sprites:
                 move.w d7, d3
                 jsr restore_sprite_background_blitter ; restore the flying small sprites
@@ -248,7 +267,7 @@ restore_sprite_background_blitter:
                     move.l a2, SRC_ADDR(a4)  ; source address
                     move.l a3, DEST_ADDR(a4) ; destination address
                     move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    BLIT_MODE
+                    HOG_MODE
                     addq.w #2, a2               ; Next bitplane src
                     addq.w #2, a3               ; Next bitplane dest
                     ENDR
@@ -286,6 +305,7 @@ display_sprite_xy:
 ; a0 <- sprite address. The address of the sprite shifted
 
                     ; Calculate X and Y addrees
+                    add.w #MANUAL_OFFSET_X_AXIS, d0
                     and.w #(65536 - BITS_PER_SKEW), d0 ; d0 <- d0 & (65535 - BITS_PER_SKEW). Keep the X coordinate in the range 0..304
                     lsr.w #1, d0                      ; d0 <- d0 >> 1. d0 now contains the the byte offset of the sprite in X
                     add.w d0, a1                    ; a1 <- a1 + d0. a1 now contains the memory address of the screen
@@ -365,7 +385,7 @@ display_sprite_xy:
                     move.l a2, SRC_ADDR(a4)  ; source address
                     move.l a1, DEST_ADDR(a4) ; destination address
                     move.w #DST_HEIGHT, BLOCK_Y_COUNT(a4) ; block Y count. This one must be reinitialized every bitplane
-                    BLIT_MODE
+                    HOG_MODE
 
                     ; Next bitplane dest 
                     addq.w #2, a1            ; Next bitplane dest
