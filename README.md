@@ -6,6 +6,8 @@ A sample demo developed with the [atarist-toolkit-docker](https://github.com/die
 
 Welcome to the "AtariST Silly Demo", a demo created using the tools available in the [atarist-toolkit-docker](https://github.com/diegoparrilla/atarist-toolkit-docker) project. This demo is written in a combination of C and 68K assembler, and can be built from scratch using the tools provided in the[atarist-toolkit-docker](https://github.com/diegoparrilla/atarist-toolkit-docker) image. The demoscene was a very popular global community of programmers, artists, and musicians who create real-time audio-visual presentations. Demos are often used to showcase the skills and creativity of their creators, as well as the capabilities of a particular platform. I have zero talent and I only write this demo for fun and nostalgia. I hope it can be useful for someone out there.
 
+[<img src="https://i9.ytimg.com/vi_webp/a-5O7mlukhQ/mq2.webp?sqp=CPCJsKIG-oaymwEmCMACELQB8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGHIgYigRMA8=&rs=AOn4CLClqgH55oiIWFhnnur1mgqS1bpGFQ" width="100%">](https://youtu.be/a-5O7mlukhQ "Preview")
+
 ## Requirements
 
 - An Atari STe computer (or emulator). There are several emulators available for Windows, Linux, and Mac. I recommend [Hatari](http://hatari.tuxfamily.org/), and I'm also a big fan of [MiSTer](https://misterfpga.org/). It should work on any Atari STe with at least 1MB of RAM.
