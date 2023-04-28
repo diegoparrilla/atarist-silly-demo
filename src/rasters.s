@@ -12,7 +12,6 @@
     XREF    _screen_pixel_offset
     XREF    _megascrl_sinwave_index
 
-
                 ; Rasters section
 TIMERB_COUNT_EVERY_SCAN_LINE    EQU 12
 TIMERB_EVENT_COUNT              EQU 8
@@ -20,7 +19,7 @@ TILE_COLOR_PALETTE              EQU 64             ; 32 word colors per tile
 COLOR_ITEM_PALETTE_SIZE         EQU 2              ; 2 bytes (1 word) per color
 SCREEN_RASTER_LINES             EQU 192            ; 192 scan lines per screen
 SCREEN_GAP_PHYSICAL_LOGICAL     EQU _SCREEN_PHYS_HEIGHT_LINES - _SCREEN_VISIBLE_HEIGHT_LINES
-BACKGROUND_RASTER_ADDRESS       EQU $ffff8250 
+BACKGROUND_RASTER_ADDRESS       EQU $ffff8250
 
 
                 section code
@@ -32,7 +31,6 @@ _asm_setup_vblank:
                 move.l d0, _raster_y_pos_start       ; init the raster y position for the scroller
                 move.w d0, _raster_y_pos_start + 4   ; init the raster y position for the scroller
                 lea vblank_routine, a1          ; get the address of the vblank routine
-                lea timer_b_routine, a2         ; get the address of the timer b routine
                 rts
 
 vblank_routine:
@@ -71,9 +69,11 @@ vblank_routine:
                 move.w d0, d1
                 bpl.s .positive_display
                 neg.w d1
-                lsr.w #1, d1
-                moveq #0, d0
+;                lsr.w #1, d1
+                moveq #2, d0
                 move.w rainbow_colors, BACKGROUND_RASTER_ADDRESS.w
+                clr.b	$fffffa1b.w			                        ;Timer B control (stop)
+                move.l #timer_b_routine, $120.w
                 bra.s .enable_rasters
 .positive_display:
                 lsr.w #1, d0
@@ -82,22 +82,17 @@ vblank_routine:
                 swap d1             ; Wait for the next HBL using the remainder
                 sub.w #12, d1       
                 neg.w d1
-                addq #1,d0 
                 add.w d0,d0         ; d0 has the value for the next color in the line counter
                 add.w d0,d0
-;                move.w rainbow_colors(pc, d0), BACKGROUND_RASTER_ADDRESS.w
+                addq #2, d0
+                move.w rainbow_colors(pc, d0), BACKGROUND_RASTER_ADDRESS.w
+                clr.b	$fffffa1b.w			                        ;Timer B control (stop)
+                move.l #timer_b_routine_continue, $120.w
 .enable_rasters:
                 move.w d0, line_counter
                 ;Start up Timer B each VBL
-                move.w	#$2700,sr			                        ;Stop all interrupts
-                move.l #timer_b_routine, $120.w
-                clr.b	$fffffa1b.w			                        ;Timer B control (stop)
-                bset	#0,$fffffa07.w			                    ;turn on timer b in enable a
-                bset	#0,$fffffa13.w			                    ;turn on timer b in mask a
                 move.b	d1,$fffffa21.w   ;Timer B data (number of scanlines to next interrupt)
-                bclr	#3,$fffffa17.w			                    ;Automatic end of interrupt
                 move.b	#TIMERB_EVENT_COUNT,$fffffa1b.w			    ;Timer B control (event mode (HBL))
-                move.w	#$2300,sr			                        ;Interrupts back on
                 movem.l (a7)+, d0-d2/a0                ; restore the registers
                 rte
 
@@ -149,8 +144,10 @@ rainbow_colors:
 
 ; Using short reference to the palette with PC relative addressing
 timer_b_routine:
+                clr.b	$fffffa1b.w			                        ;Timer B control (stop)
                 move.l #timer_b_routine_continue, $120.w
                 move.b	#TIMERB_COUNT_EVERY_SCAN_LINE,$fffffa21.w   ;Timer B data (number of scanlines to next interrupt)
+                move.b	#TIMERB_EVENT_COUNT,$fffffa1b.w			    ;Timer B control (event mode (HBL))
                 rte
 
 ; Using short reference to the palette with PC relative addressing
