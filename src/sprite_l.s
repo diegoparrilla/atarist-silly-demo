@@ -18,12 +18,12 @@ BITPLANES               equ C23LOGO_PLANES              ; Number of bitplanes
 SRC_WIDTH               equ C23LOGO_WIDTH_BYTES         ; Original width of the sprite in BYTES
 SRC_HEIGHT              equ C23LOGO_HEIGHT_LINES        ; Original height of the sprite in lines
 DST_WIDTH               equ (SRC_WIDTH/BITPLANES)*_SCREEN_BITPLANES                   ; Original width of the sprite in BYTES
-DST_HEIGHT              equ SRC_HEIGHT                  ; Original height of the sprite in lines
+DST_HEIGHT              equ SRC_HEIGHT-1                  ; Original height of the sprite in lines
 BITS_PER_SKEW           equ 16                          ; Number of bits to shift per skew (16 bits per word)
-SPRITE_SIZE_ORIGINAL    equ (SRC_WIDTH * SRC_HEIGHT)    ; Size of the original sprite in bytes
+SPRITE_SIZE_ORIGINAL    equ (SRC_WIDTH * DST_HEIGHT)    ; Size of the original sprite in bytes
 SPRITE_POSITION_Y       equ 0                           ; Y position of the sprite in the screen
 SPRITE_POSITION         equ _SCREEN_WIDTH_BYTES * SPRITE_POSITION_Y + 8; Position of the sprite in the screen
-CLEAN_BAR_HEIGHT        equ 6                           ; Height of the clean bar in lines  
+CLEAN_BAR_HEIGHT        equ 7                           ; Height of the clean bar in lines  
 
 
                 MACRO BLIT_MODE
@@ -64,7 +64,7 @@ _asm_clean_big_sprite:
 
                     move.l a1, DEST_ADDR(a6) ; destination address
                     move.w d6, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    BLIT_MODE
+                    HOG_MODE
                     rts
 
 

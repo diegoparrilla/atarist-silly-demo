@@ -25,19 +25,19 @@ for i in range(frames):
 #         lines.append(f"                dc.w {int(y)}\n")
 
 entries = 410
-amplitude = 192 - 72  # The amplitude of the sine wave
+amplitude = 200 - 60  # The amplitude of the sine wave
 start_position = amplitude  # The X axis position 0 is at start_position
 for x in range(entries):
-    y = start_position - abs(amplitude * math.cos(1.1 * math.radians(x))) * (
+    y = start_position - abs(amplitude * math.cos(1 * math.radians(x))) * (
         math.e ** (-math.radians(x) / 4)
     )
     lines.append(f"                dc.w {int(y)}\n")
 
 entries = 410
-amplitude = 192 - 72  # The amplitude of the sine wave
+amplitude = 200 - 60  # The amplitude of the sine wave
 start_position = amplitude  # The X axis position 0 is at start_position
 for x in range(entries, 1, -1):
-    y = start_position - abs(amplitude * math.cos(1.1 * math.radians(x))) * (
+    y = start_position - abs(amplitude * math.cos(1 * math.radians(x))) * (
         math.e ** (-math.radians(x) / 4)
     )
     lines.append(f"                dc.w {int(y)}\n")
