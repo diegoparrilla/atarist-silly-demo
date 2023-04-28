@@ -54,7 +54,7 @@ sinwaves:
 	python src/textroll.py
 	python src/megascrl.py
 
-clean-compile : clean emunat.o init.o loader.o loop.o megascrl.o print.o print_s.o rasters.o scroller.o sndh.o sprite_s.o sprite_l.o textroll.o tiles.o main.o
+clean-compile : clean emunat.o init.o loader.o loop.o megascrl.o print.o print_s.o rasters.o scroller.o sndh.o sprite_s.o sprite_l.o textroll.o main.o
 
 emunat.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/emunat.s -o $(BUILD_DIR)/emunat.o
@@ -95,14 +95,12 @@ sprite_l.o: prepare
 textroll.o: prepare
 	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/textroll.s -o $(BUILD_DIR)/textroll.o
 
-tiles.o: prepare
-	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/tiles.s -o $(BUILD_DIR)/tiles.o
 
 # All C files
 main.o: prepare
 	$(CC) $(CFLAGS) $(SOURCES_DIR)/main.c -o $(BUILD_DIR)/main.o
 
-main: main.o emunat.o init.o loader.o loop.o megascrl.o print.o print_s.o rasters.o  scroller.o sndh.o sprite_s.o sprite_l.o textroll.o tiles.o
+main: main.o emunat.o init.o loader.o loop.o megascrl.o print.o print_s.o rasters.o  scroller.o sndh.o sprite_s.o sprite_l.o textroll.o
 	$(CC) $(LIBCMINI)/lib/crt0.o \
 	      $(BUILD_DIR)/emunat.o \
 	      $(BUILD_DIR)/init.o \
@@ -117,7 +115,6 @@ main: main.o emunat.o init.o loader.o loop.o megascrl.o print.o print_s.o raster
 		  $(BUILD_DIR)/sprite_s.o \
 		  $(BUILD_DIR)/sprite_l.o \
 		  $(BUILD_DIR)/textroll.o \
-		  $(BUILD_DIR)/tiles.o \
 		  $(BUILD_DIR)/main.o \
 		  -o $(BUILD_DIR)/$(EXE) $(LINKFLAGS);
 
