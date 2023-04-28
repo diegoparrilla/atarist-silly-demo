@@ -7,7 +7,7 @@ FRAMES_PER_SECOND = 50  # 50 Hertzs
 
 # Write in an array of strings to save later to the file
 lines = []
-lines.append("textroll_sinwave:\n")
+lines.append("megascrl_sinwave:\n")
 
 # # Let's start at the top of the screen witout moving the scroll
 # start_position_y = 4
@@ -15,10 +15,10 @@ lines.append("textroll_sinwave:\n")
 # for i in range(frames):
 #     lines.append("                dc.w %i\n" % start_position_y)
 
-entries = 40
+entries = 192
 for j in range(1):
-    start_position = 3  # The X axis position 0 is at start_position
-    amplitude = 2.5  # The amplitude of the sine wave
+    start_position = 36  # The X axis position 0 is at start_position
+    amplitude = 36  # The amplitude of the sine wave
     for i in range(entries):
         x = i * 180 / (entries / 2)
         y = (math.sin(math.radians(x)) * amplitude) + start_position
@@ -34,7 +34,7 @@ for j in range(1):
 #         lines.append(f"                dc.w {int(y)}\n")
 
 # Write the array to the file out to the folder src/scroller.inc
-with open("src/textroll.inc", "w") as f:
+with open("src/megascrl.inc", "w") as f:
     f.writelines(lines)
     f.write("\n")
-    f.write(f"textroll_table_size                dc.w  {(len(lines)-1) * 2}\n")
+    f.write(f"MEGASCRL_TABLE_SIZE                EQU  {(len(lines)-1) * 2}\n")

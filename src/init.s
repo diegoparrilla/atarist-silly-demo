@@ -14,7 +14,6 @@
 ;      Save the state of the system and sets the VBL and Timer B to our own
 ;      routines.
 ;      ; a1: Address of the VBL routine
-;      ; a2: Address of the Timer B routine
 _asm_save_state:
 		lea	save_screenadr,a0		    ;Save old screen address
 		move.b	VIDEO_BASE_ADDR_LOW.w,(a0)+
@@ -30,13 +29,6 @@ _asm_save_state:
 		movem.l _asm_palette_dithered, d0-d7			; Set new palette
 		movem.l d0-d7, $ffff8240.w
 
-
-;		move.w	#$2700,sr			    ;Stop all interrupts
-;		move.l	$70.w,save_vbl			;Save old VBL
-;		move.l	a1,$70.w			    ;Install our own VBL
-;		move.w	#$2300,sr			;Interrupts back on
-;		rts 
-
 		move.w	#$2700,sr			    ;Stop all interrupts
 		move.l	$70.w,save_vbl			;Save old VBL
 		move.l	$68.w,save_hbl			;Save old HBL
@@ -46,21 +38,22 @@ _asm_save_state:
 		move.l	$110.w,save_td			;Save old Timer D
 		move.l	$118.w,save_acia		;Save old ACIA
 		move.l	a1,$70.w			    ;Install our own VBL
-		move.l	a2,$120.w   			;Install our own Timer B
 		move.l	#dummy,$68.w			;Install our own HBL (dummy)
 		move.l	#dummy,$134.w			;Install our own Timer A (dummy)
 		move.l	#dummy,$114.w			;Install our own Timer C (dummy)
 		move.l	#dummy,$110.w			;Install our own Timer D (dummy)
 		move.l	#dummy,$118.w			;Install our own ACIA (dummy)
+		move.l  #dummy,$120.w			;Install our own Timer B (dummy)
 		move.b  $fffffa07.w,save_inta		;Save MFP state for interrupt enable A
 		move.b  $fffffa13.w,save_inta_mask	;Save MFP state for interrupt mask A
 		move.b	$fffffa09.w,save_intb		;Save MFP state for interrupt enable B
 		move.b	$fffffa15.w,save_intb_mask	;Save MFP state for interrupt mask B
-;		clr.b	$fffffa07.w			;Interrupt enable A (Timer-A & B)
-;        move.b #-1, $fffffa07.w
-;		clr.b	$fffffa13.w			;Interrupt mask A (Timer-A & B)
-;		clr.b	$fffffa09.w			;Interrupt enable B (Timer-C & D)
-;		clr.b	$fffffa15.w			;Interrupt mask B (Timer-C & D)
+		clr.b	$fffffa07.w			;Interrupt enable A (Timer-A & B)
+		clr.b	$fffffa09.w			;Interrupt enable B (Timer-C & D)
+		clr.b	$fffffa13.w			;Interrupt mask A (Timer-A & B)
+		clr.b	$fffffa15.w			;Interrupt mask B (Timer-C & D)
+		ORI.B #%00100001,$FFFFFA07.W		; ENABLE TIMER B
+		ORI.B #%00100001,$FFFFFA13.W		; MASK TIMER B
 		move.w	#$2300,sr			;Interrupts back on
 
 		move.b	#$12,$fffffc02.w		;Kill mouse

@@ -10,13 +10,17 @@
     XREF    _screen_next
     XREF    _screen_absolute_offset
     XREF    _screen_pixel_offset
+    XREF    _megascrl_sinwave_index
 
                 ; Rasters section
-TIMERB_COUNT_EVERY_SCAN_LINE    EQU 2
+TIMERB_COUNT_EVERY_SCAN_LINE    EQU 12
 TIMERB_EVENT_COUNT              EQU 8
 TILE_COLOR_PALETTE              EQU 64             ; 32 word colors per tile
 COLOR_ITEM_PALETTE_SIZE         EQU 2              ; 2 bytes (1 word) per color
 SCREEN_RASTER_LINES             EQU 192            ; 192 scan lines per screen
+SCREEN_GAP_PHYSICAL_LOGICAL     EQU _SCREEN_PHYS_HEIGHT_LINES - _SCREEN_VISIBLE_HEIGHT_LINES
+BACKGROUND_RASTER_ADDRESS       EQU $ffff8250
+
 
                 section code
 
@@ -27,11 +31,10 @@ _asm_setup_vblank:
                 move.l d0, _raster_y_pos_start       ; init the raster y position for the scroller
                 move.w d0, _raster_y_pos_start + 4   ; init the raster y position for the scroller
                 lea vblank_routine, a1          ; get the address of the vblank routine
-                lea timer_b_routine, a2         ; get the address of the timer b routine
                 rts
 
 vblank_routine:
-                movem.l d0-d2, -(a7)                ; save the registers
+                movem.l d0-d2/a0, -(a7)                ; save the registers
 ; IMPORTANT: _screen_next is visible AFTER the vblank interrupt
 ; To understand why this is important, please read the articule here:
 ; http://alive.atari.org/alive12/ste_hwsc.php
@@ -58,30 +61,105 @@ vblank_routine:
 ; use _screen_next as the new pointer to the hidden screen buffer.
 
                 addq #1, _asm_vbl_counter                           ; set the vbl counter when the vblank starts   
-                move.w #2, line_counter                                 ; clear the line counter before starting vblank
+;                clr.w line_counter                                 ; clear the line counter before starting vblank
 
-                move.w rotate_raster, d0
-                and.w #(TILE_COLOR_PALETTE * 2) - 1, d0               ; get the next color word
-                move.w gradient(pc, d0), d1
-                move.w d1, $ffff824E.w            ; extract the color from indexed table
-                move.w d1, $ffff825E.w            ; extract the color from indexed table
-
-                addq #2, d0                              ; increment the raster
-                move.w d0, rotate_raster
-
-                movem.l (a7)+, d0-d2                ; restore the registers
+                move.l _megascrl_sinwave_index, a0
+                move.w (a0), d0
+                sub.w #SCREEN_GAP_PHYSICAL_LOGICAL, d0
+                move.w d0, d1
+                bpl.s .positive_display
+                neg.w d1
+;                lsr.w #1, d1
+                moveq #2, d0
+                move.w rainbow_colors, BACKGROUND_RASTER_ADDRESS.w
+                clr.b	$fffffa1b.w			                        ;Timer B control (stop)
+                move.l #timer_b_routine, $120.w
+                bra.s .enable_rasters
+.positive_display:
+                lsr.w #1, d0
+                divu #12, d0
+                move.l d0, d1       ; 
+                swap d1             ; Wait for the next HBL using the remainder
+                sub.w #12, d1       
+                neg.w d1
+                add.w d0,d0         ; d0 has the value for the next color in the line counter
+                add.w d0,d0
+                addq #2, d0
+                move.w rainbow_colors(pc, d0), BACKGROUND_RASTER_ADDRESS.w
+                clr.b	$fffffa1b.w			                        ;Timer B control (stop)
+                move.l #timer_b_routine_continue, $120.w
+.enable_rasters:
+                move.w d0, line_counter
+                ;Start up Timer B each VBL
+                move.b	d1,$fffffa21.w   ;Timer B data (number of scanlines to next interrupt)
+                move.b	#TIMERB_EVENT_COUNT,$fffffa1b.w			    ;Timer B control (event mode (HBL))
+                movem.l (a7)+, d0-d2/a0                ; restore the registers
                 rte
 
-                ;Start up Timer B each VBL
-;                move.w	#$2700,sr			                        ;Stop all interrupts
-;                clr.b	$fffffa1b.w			                        ;Timer B control (stop)
-;                bset	#0,$fffffa07.w			                    ;turn on timer b in enable a
-;                bset	#0,$fffffa13.w			                    ;turn on timer b in mask a
-;                move.b	#TIMERB_COUNT_EVERY_SCAN_LINE,$fffffa21.w   ;Timer B data (number of scanlines to next interrupt)
-;                bclr	#3,$fffffa17.w			                    ;Automatic end of interrupt
-;                move.b	#TIMERB_EVENT_COUNT,$fffffa1b.w			    ;Timer B control (event mode (HBL))
-;                move.w	#$2300,sr			                        ;Interrupts back on
-;                rte
+rainbow_colors: 
+                dc.w $0700     ; red
+                dc.w $0600     ; 
+                dc.w $0500     ;
+                dc.w $0400     ;
+                dc.w $0300     ; 
+                dc.w $0750     ; orange
+                dc.w $0640     ;
+                dc.w $0530     ;
+                dc.w $0420     ;
+                dc.w $0310     ;
+                dc.w $0770     ; yellow
+                dc.w $0660     ;
+                dc.w $0550     ;
+                dc.w $0440     ;
+                dc.w $0330     ;
+                dc.w $0070     ; green
+
+
+                dc.w $0700     ; red
+                dc.w $0600     ; 
+                dc.w $0500     ;
+                dc.w $0400     ;
+
+
+                dc.w $0060     ;
+                dc.w $0050     ;
+                dc.w $0040     ;
+                dc.w $0030     ;
+                dc.w $0007     ; blue
+                dc.w $0006     ;
+                dc.w $0005     ;
+                dc.w $0004     ;
+                dc.w $0003     ;
+                dc.w $0305     ; indigo
+                dc.w $0204     ;
+                dc.w $0103     ;
+                dc.w $0002     ;
+                dc.w $0001     ;
+                dc.w $0406     ; violet
+                dc.w $0305     ;
+                dc.w $0204     ;
+                dc.w $0103     ;
+; Does not fit...
+                dc.w $0002     ;
+
+; Using short reference to the palette with PC relative addressing
+timer_b_routine:
+                clr.b	$fffffa1b.w			                        ;Timer B control (stop)
+                move.l #timer_b_routine_continue, $120.w
+                move.b	#TIMERB_COUNT_EVERY_SCAN_LINE,$fffffa21.w   ;Timer B data (number of scanlines to next interrupt)
+                move.b	#TIMERB_EVENT_COUNT,$fffffa1b.w			    ;Timer B control (event mode (HBL))
+                rte
+
+; Using short reference to the palette with PC relative addressing
+timer_b_routine_continue:
+                move.w d0, -(a7)
+                move.w line_counter, d0                               ; get the current scan line
+                and.w #(TILE_COLOR_PALETTE * 2) - 1, d0               ; get the next color word
+                move.w rainbow_colors(pc, d0), BACKGROUND_RASTER_ADDRESS.w            ; extract the color from indexed table
+                addq.w #COLOR_ITEM_PALETTE_SIZE, line_counter         ; increment the line counter by a word
+                move.w (a7)+, d0
+                move.b	#TIMERB_COUNT_EVERY_SCAN_LINE,$fffffa21.w   ;Timer B data (number of scanlines to next interrupt)
+                rte
 
 gradient:
                 dc.w $444
@@ -151,85 +229,17 @@ gradient:
                 dc.w $055
                 dc.w $0cc
                 dc.w $044
-
-            
-
-
-; Using short reference to the palette with PC relative addressing
-timer_b_routine:
-                rte
-                move.w d0, -(a7)
-                move.w line_counter, d0                               ; get the current scan line
-                cmp.w _raster_y_pos_start + 4, d0                         ; compare the current scan line with the raster y position
-                bge.s .change_palette
-.skip_change_palette:
-                move.w _asm_palette_dithered + 0, $ffff8240.w	; Set the palette every vblank
-                move.w _asm_palette_dithered + 16, $ffff8250.w
-
-                addq.w #COLOR_ITEM_PALETTE_SIZE, line_counter         ; increment the line counter by a word
-                move.w (a7)+, d0
-                rte
-.change_palette:
-                cmp.w _raster_y_pos_end + 4, d0
-                bgt.s .skip_change_palette
-                add.w rotate_raster, d0
-                and.w #(TILE_COLOR_PALETTE * 2) - 1, d0               ; get the next color word
-                move.w rainbow_colors(pc, d0), d0
-;                moveq #0, d0
-                move.w d0, $ffff8240.w            ; extract the color from indexed table
-                move.w d0, $ffff8250.w            ; extract the color from indexed table
-
-                addq.w #COLOR_ITEM_PALETTE_SIZE, line_counter         ; increment the line counter by a word
-                move.w (a7)+, d0
-                rte
-
-;                section data align 2
-rainbow_colors: 
-                dc.w $0700     ; red
-                dc.w $0600     ; 
-                dc.w $0500     ;
-                dc.w $0400     ;
-                dc.w $0300     ; 
-                dc.w $0750     ; orange
-                dc.w $0640     ;
-                dc.w $0530     ;
-                dc.w $0420     ;
-                dc.w $0310     ;
-                dc.w $0770     ; yellow
-                dc.w $0660     ;
-                dc.w $0550     ;
-                dc.w $0440     ;
-                dc.w $0330     ;
-                dc.w $0070     ; green
-                dc.w $0060     ;
-                dc.w $0050     ;
-                dc.w $0040     ;
-                dc.w $0030     ;
-                dc.w $0007     ; blue
-                dc.w $0006     ;
-                dc.w $0005     ;
-                dc.w $0004     ;
-                dc.w $0003     ;
-                dc.w $0305     ; indigo
-                dc.w $0204     ;
-                dc.w $0103     ;
-                dc.w $0002     ;
-                dc.w $0001     ;
-                dc.w $0406     ; violet
-                dc.w $0305     ;
-                dc.w $0204     ;
-                dc.w $0103     ;
-; Does not fit...
-                dc.w $0002     ;
 atari_letters: 
                 dc.w $0777     ; white
                 dc.w $0666     ; white
                 dc.w $0555     ; white
                 dc.w $0444     ; white
 
-
+;                include src/megascrl.inc    ; The texroll trigonometric tables
 
                 section bss
+;megascrl_sinwave_index: ds.l 1
+;megascrl_sinwave_last: ds.l 1
 line_counter:       ds.w 1
 rotate_raster:      ds.w 1
 _asm_vbl_counter    ds.w 1

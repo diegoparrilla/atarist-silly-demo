@@ -179,7 +179,10 @@ void run()
     screen = Logbase();
 
     printf("\r");
-    printf("THE SILLY DEMO - 1990-2023 Logronoide\r\n");
+    printf("THE SILLY DEMO\r\n");
+    printf("2023 - CODE BY CANAL 23 / @soyparrilla\r\n");
+    printf("1990 - GRAPHICS BY Red Devil / @antor\r\n");
+    printf("MUSIC BY Estrayk / @estrayk\r\n");
     printf("=====================================\r\n");
     ShowMachineType(machine_type);
     printf("Memory size: %d KB\r\n", memory_size / 1024);
@@ -201,19 +204,15 @@ void run()
     printf("\r\n");
     printf("\r\n");
     printf("\r\n");
-    printf("\r\n");
-    printf("\r\n");
-    printf("\r\n");
-    printf("\r\n");
     int valid_machine = 1;
     if (machine_type != 1)
     {
         printf("This demo is only for STE machines.\r\n");
         valid_machine = 0;
     }
-    if (memory_size < 1 * 1024 * 1024 - 32768)
+    if (memory_size < 4 * 1024 * 1024 - 32768)
     {
-        printf("This demo needs at least 1 MB of memory.\r\n");
+        printf("This demo needs at least 4 MB of memory.\r\n");
         valid_machine = 0;
     }
     if (!valid_machine)

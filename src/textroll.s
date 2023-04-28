@@ -17,24 +17,24 @@
                 ; Scrolling section
 
 FONT_REAL_HEIGHT        equ 25
-FONT_HEIGHT             equ 28
+FONT_HEIGHT             equ 30
 FONT_BITPLANES          equ 4
 FONT_VISIBLE_BITPLANES  equ 4
 FONT_WIDTH              equ 6 * FONT_BITPLANES ; 6 bytes per char (32 pixels + 16 buffer) x 4 bitplanes
 FONT_VISIBLE_WIDTH      equ 4 * FONT_VISIBLE_BITPLANES ; 4 bytes per char (32 pixels) x 3 bitplanes + 1 mask bitplane
 FONT_LARGE_SIZE_NO_GUARDS   equ FONT_REAL_HEIGHT * FONT_WIDTH
 FONT_LARGE_SIZE         equ FONT_HEIGHT * FONT_WIDTH
-TEXT_ROLL_LENGTH        equ 147; 147 chars in demo_text + 1 for the end of string
+TEXT_ROLL_LENGTH        equ 92; 90 chars in demo_text + 1 for the end of string
 MEMORY_BUFFER_WIDTH_BYTES equ TEXT_ROLL_LENGTH * FONT_VISIBLE_WIDTH
 SCROLL_SPEED            equ 2      ; Bits to rotate the scroll. Must be 2^n
-TEXT_ROLL_BUFFERS       equ 24      ; Number of buffers to use for the text roll
+TEXT_ROLL_BUFFERS       equ 40     ; Number of buffers to rotate the text roll
 
                 section code
 
                 MACRO BLIT_MODE
                 or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a3)    ; << START THE BLITTER >>
 .\@wait_blitter:
-                bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a4)       ; Restart BLiTTER and test the BUSY
+                bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a3)       ; Restart BLiTTER and test the BUSY
                 nop                      ; flag state.  The "nop" is executed
                 bne.s  .\@wait_blitter     ; prior to the BLiTTER restarting.
                 ENDM
@@ -398,7 +398,7 @@ _asm_restore_textroll_bar:
                 lea  $FF8A00,a3          ; a3-> BLiTTER register block
                 move.w #_SCREEN_BITPLANES * 2, DEST_X_INCREMENT(a3) ; dest X increment. Jump 3 (2 + 2 + 2) planes.
                 move.w #_SCREEN_BITPLANES * 2, DEST_Y_INCREMENT(a3) ; dest Y increment. Increase the 4 planes.
-                move.w #( _SCREEN_WIDTH_BYTES / _SCREEN_BITPLANES) / 2, BLOCK_X_COUNT(a3) ; block X count. It seems don't need to reinitialize every bitplane.
+                move.w #(( _SCREEN_WIDTH_BYTES / _SCREEN_BITPLANES) / 2), BLOCK_X_COUNT(a3) ; block X count. It seems don't need to reinitialize every bitplane.
                 move.w #$FFFF, ENDMASK2_REG(a3) ; endmask2 register
                 move.w #$FFFF, ENDMASK3_REG(a3) ; endmask3 register. The mask should covers the char column.
                 move.w #$FFFF, ENDMASK1_REG(a3) ; endmask1 register
@@ -410,19 +410,19 @@ _asm_restore_textroll_bar:
                 ; first plane
                 move.l a5, DEST_ADDR(a3)                                ; destination address
                 move.w #FONT_HEIGHT, BLOCK_Y_COUNT(a3)            ; block Y count. This one must be reinitialized every bitplane
-                BLIT_MODE
+                HOG_MODE
                 addq.w #2, a5                                           ; Next bitplane dest
 
                 ; second plane
                 move.l a5, DEST_ADDR(a3)                                ; destination address
                 move.w #FONT_HEIGHT, BLOCK_Y_COUNT(a3)            ; block Y count. This one must be reinitialized every bitplane
-                BLIT_MODE
+                HOG_MODE
                 addq.w #2, a5                                           ; Next bitplane dest
 
                 ; third plane
                 move.l a5, DEST_ADDR(a3)                                ; destination address
                 move.w #FONT_HEIGHT, BLOCK_Y_COUNT(a3)            ; block Y count. This one must be reinitialized every bitplane
-                BLIT_MODE
+                HOG_MODE
 .no_scroll_y:
                 rts
 
@@ -461,7 +461,7 @@ ascii_index:                                                   ; Index table to 
                 dc.b 7, 8, 9, 10, 11, 12, 13, 14, 15, 16       ; H, I, J, K, L, M, N, O, P, Q
                 dc.b 17, 18, 19, 20, 21, 22, 23, 24, 25        ; R, S, T, U, V, W, X, Y, Z
 
-demo_text:      dc.b "          THIS IS THE ATARI ST SILLY DEMO. A SIMPLE DEMO ONLY TO REFRESH MY M68K CODING SKILLS AND WASTE TIME DOING USELESS STUFF THAT NOBODY CARES",0
+demo_text:      dc.b "          PRESS 1 OR 2 TO CHANGE THE CHIPTUNE - PRESS 7 TO 0 TO CHANGE THE BACKGROUND SPEED ",0
 
                 EVEN
 

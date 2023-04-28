@@ -18,19 +18,32 @@ BITPLANES               equ C23LOGO_PLANES              ; Number of bitplanes
 SRC_WIDTH               equ C23LOGO_WIDTH_BYTES         ; Original width of the sprite in BYTES
 SRC_HEIGHT              equ C23LOGO_HEIGHT_LINES        ; Original height of the sprite in lines
 DST_WIDTH               equ (SRC_WIDTH/BITPLANES)*_SCREEN_BITPLANES                   ; Original width of the sprite in BYTES
-DST_HEIGHT              equ SRC_HEIGHT                  ; Original height of the sprite in lines
+DST_HEIGHT              equ SRC_HEIGHT-1                  ; Original height of the sprite in lines
 BITS_PER_SKEW           equ 16                          ; Number of bits to shift per skew (16 bits per word)
-SPRITE_SIZE_ORIGINAL    equ (SRC_WIDTH * SRC_HEIGHT)    ; Size of the original sprite in bytes
-SPRITE_POSITION_Y       equ 132                           ; Y position of the sprite in the screen
+SPRITE_SIZE_ORIGINAL    equ (SRC_WIDTH * DST_HEIGHT)    ; Size of the original sprite in bytes
+SPRITE_POSITION_Y       equ 0                           ; Y position of the sprite in the screen
 SPRITE_POSITION         equ _SCREEN_WIDTH_BYTES * SPRITE_POSITION_Y + 8; Position of the sprite in the screen
-CLEAN_BAR_HEIGHT        equ 8                           ; Height of the clean bar in lines  
+CLEAN_BAR_HEIGHT        equ 7                           ; Height of the clean bar in lines  
+
+
+                MACRO BLIT_MODE
+                    or.b #F_LINE_BUSY,BLITTER_CONTROL_REG(a6)    ; << START THE BLITTER >>
+.\@wait_blitter:
+                    bset.b    #M_LINE_BUSY,BLITTER_CONTROL_REG(a6)       ; Restart BLiTTER and test the BUSY
+                    nop                      ; flag state.  The "nop" is executed
+                    bne.s  .\@wait_blitter     ; prior to the BLiTTER restarting.
+                ENDM
+
+                MACRO HOG_MODE
+                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+                ENDM
 
 _asm_clean_big_sprite:
-                    moveq #(0 * _SCREEN_BITPLANES), d2 ; dest X increment. Jump 4 (2 + 2 + 2 + 2) planes.
-                    move.w #(_SCREEN_WIDTH_BYTES - _SCREEN_BITPLANES * 0), d3 ; dest Y increment. Jump 4 (2 + 2 + 2 + 2) planes of empty places on the screen.
-                    moveq #1, d4                ; We only delete the left and right columns of the sprite   
+                    moveq #2, d2 ; dest X increment. Jump 4 (2 + 2 + 2 + 2) planes.
+                    move.w #(_SCREEN_WIDTH_BYTES - 6), d3 ; dest Y increment. Jump 4 (2 + 2 + 2 + 2) planes of empty places on the screen.
+                    moveq #4, d4                ; We only delete the left and right columns of the sprite   
                     moveq #0, d5
-                    moveq #DST_HEIGHT, d6 ; block Y count. This one must be reinitialized every bitplane
+                    move.w #200, d6 ; block Y count. This one must be reinitialized every bitplane
 
                     add.b _screen_pixel_offset, d5
 
@@ -47,38 +60,13 @@ _asm_clean_big_sprite:
                     move.w #$FFFF, ENDMASK3_REG(a6) ; endmask2 register
 
                     move.l _screen_next, a1 ; a1 -> destination address
-                    add.w #SPRITE_POSITION, a1
+                    add.w #SPRITE_POSITION - 16, a1
 
                     move.l a1, DEST_ADDR(a6) ; destination address
                     move.w d6, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
-
-                    addq.w #2, a1               ; Next bitplane dest
-                    move.l a1, DEST_ADDR(a6) ; destination address
-                    move.w d6, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
-
-                    addq.w #2, a1               ; Next bitplane dest
-                    move.l a1, DEST_ADDR(a6) ; destination address
-                    move.w d6, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
-
-                    add.w #124, a1
-
-                    move.l a1, DEST_ADDR(a6) ; destination address
-                    move.w d6, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
-
-                    addq.w #2, a1               ; Next bitplane dest
-                    move.l a1, DEST_ADDR(a6) ; destination address
-                    move.w d6, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
-
-                    addq.w #2, a1               ; Next bitplane dest
-                    move.l a1, DEST_ADDR(a6) ; destination address
-                    move.w d6, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+                    HOG_MODE
                     rts
+
 
 _asm_display_big_sprite:
 
@@ -150,15 +138,15 @@ _asm_display_big_sprite:
                     move.b #$0, BLITTER_OPERATION(a6) ; blitter operation. Copy src to dest, replace copy.
                     move.l a1, DEST_ADDR(a6) ; destination address
                     move.w #CLEAN_BAR_HEIGHT, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+                    HOG_MODE
                     addq.w #2, a1               ; Next bitplane dest
                     move.l a1, DEST_ADDR(a6) ; destination address
                     move.w #CLEAN_BAR_HEIGHT, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+                    HOG_MODE
                     addq.w #2, a1               ; Next bitplane dest
                     move.l a1, DEST_ADDR(a6) ; destination address
                     move.w #CLEAN_BAR_HEIGHT, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+                    HOG_MODE
 
 
                     add.l #_SCREEN_WIDTH_BYTES * (CLEAN_BAR_HEIGHT) - (2 * 2), a1 ; Next line dest          
@@ -181,21 +169,21 @@ _asm_display_big_sprite:
                     move.l a0, SRC_ADDR(a6)  ; source address
                     move.l a1, DEST_ADDR(a6) ; destination address
                     move.w #1, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+                    HOG_MODE
 
                     addq.w #2, a1               ; Next bitplane dest
                     addq.w #2, a0               ; Next bitplane src
                     move.l a0, SRC_ADDR(a6)  ; source address
                     move.l a1, DEST_ADDR(a6) ; destination address
                     move.w #1, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+                    HOG_MODE
 
                     addq.w #2, a1               ; Next bitplane dest
                     addq.w #2, a0               ; Next bitplane src
                     move.l a0, SRC_ADDR(a6)  ; source address
                     move.l a1, DEST_ADDR(a6) ; destination address
                     move.w #1, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+                    HOG_MODE
 
                     sub.w d6, a1
 
@@ -209,15 +197,15 @@ _asm_display_big_sprite:
                     move.b #$0, BLITTER_OPERATION(a6) ; blitter operation. Copy src to dest, replace copy.
                     move.l a1, DEST_ADDR(a6) ; destination address
                     move.w #CLEAN_BAR_HEIGHT, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+                    HOG_MODE
                     addq.w #2, a1               ; Next bitplane dest
                     move.l a1, DEST_ADDR(a6) ; destination address
                     move.w #CLEAN_BAR_HEIGHT, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+                    HOG_MODE
                     addq.w #2, a1               ; Next bitplane dest
                     move.l a1, DEST_ADDR(a6) ; destination address
                     move.w #CLEAN_BAR_HEIGHT, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    move.b #HOG_MODE, BLITTER_CONTROL_REG(a6) ; Hog mode
+                    HOG_MODE
 
                     rts
 

@@ -2,22 +2,22 @@
                         include src/constants.s     ; Global constants. Start with '_'
 
     XDEF	_asm_main_loop
-    XDEF    _screen_visible
     XDEF    _screen_next
+    XDEF    _screen_phys_next
     XDEF    _screen_base_ptr
     XDEF    _current_screen_mask
     XDEF    _screen_pixel_offset
     XDEF    _screen_absolute_offset
     XDEF    _screen_dither_tiktok
+    XDEF    _megascrl_sinwave_index
+    XDEF    _scroll_speed
+    XDEF    _scroll_speed_effective
     XREF    _asm_init_nativefeatures
     XREF    _asm_get_memory_size
     XREF    _asm_save_state
     XREF    _asm_restore_state
     XREF    _asm_vbl_counter
     XREF    _asm_print_small_str
-    XREF    _asm_init_tiles
-    XREF    _asm_draw_tiles
-    XREF    _asm_draw_uridium
     XREF    _asm_setup_vblank
     XREF	_asm_cook_small_sprites
     XREF    _asm_restore_all_sprites
@@ -31,9 +31,13 @@
     XREF    _asm_show_textroll_bar
     XREF    _asm_restore_textroll_bar
 
+    XREF    _asm_draw_slice
+    XREF    _asm_rotate_small_sprites
+
     XREF   tuneinit
     XREF   tunedeinit
     XREF   tuneinter
+    XREF   tuneconfig
 
 
 TEXT_INFO_POSITION          equ 184         ; 200 lines - 16 pixels height
@@ -48,7 +52,7 @@ rotate_screens:
 ; Increment the current screen pixel offset
                 moveq.l #0, d0
                 move.b _screen_pixel_offset, d0
-                addq.b #_SCROLL_BACKGROUND_SPEED, d0
+                add.w _scroll_speed_effective, d0
                 and.b #15, d0
                 move.b d0, _screen_pixel_offset
 
@@ -64,6 +68,8 @@ rotate_screens:
                 move.b d1, _screen_absolute_offset
 
 ; Update the current screen mask depending on the number of buffers
+                move.w _current_screen_mask, d0
+                addq.w #1, d0
                 and.w #_BUFFER_NUMBERS-1,d0
                 move.w d0, _current_screen_mask
                 add.w d0,d0
@@ -91,6 +97,22 @@ rotate_screens:
                 add.l d4, d0
                 add.l d4, d1
                 move.l d0, _screen_visible             ; IMPORTANT: _screen_visible is the _current_screen_mask value
+
+                move.l d1, _screen_phys_next           ; _phys_next is the absolute start of the next screen buffer
+
+                move.l _megascrl_sinwave_index, a0
+                addq #2, a0
+                cmp.l megascrl_sinwave_last, a0
+                bne.s .no_initialize_megascroller
+                move.l #megascrl_sinwave, a0
+.no_initialize_megascroller:
+                move.l a0, _megascrl_sinwave_index
+                moveq.l #0, d0
+                move.w (a0), d0
+                mulu #_SCREEN_WIDTH_BYTES, d0
+                add.l d0, d1
+
+
                 move.l d1, _screen_next             ; IMPORTANT: _screen_next is the next _current_screen_mask valu
                 rts                                 
 
@@ -101,16 +123,18 @@ _asm_main_loop:
 
 ; Initiliaze memory
                 jsr _asm_get_memory_size
-                sub.l #_SCREEN_SIZE * (_BUFFER_NUMBERS + 1), d0
+                sub.l #_SCREEN_PHYS_SIZE * (_BUFFER_NUMBERS + 1), d0
                 move.l d0, _screen_base_ptr
 
 ; Initialize the first two buffered screens
                 clr.w _current_screen_mask                          ; set the current screen mask to 0s
 
                 move.w #_SCROLL_BACKGROUND_START, _screen_pixel_offset
+                move.w #_SCROLL_BACKGROUND_SPEED, _scroll_speed
+                move.w #_SCROLL_BACKGROUND_SPEED, _scroll_speed_effective
 
                 move.l _screen_base_ptr, a0
-                move.l  #_SCREEN_SIZE * (_BUFFER_NUMBERS + 1) / (4 * 8), d0 ; Clean all the screens
+                move.l  #_SCREEN_PHYS_SIZE * (_BUFFER_NUMBERS + 1) / (4 * 8), d0 ; Clean all the screens
                 move.l d0, d1
                 mulu #(4 * 8), d1
                 add.l d1, a0
@@ -126,13 +150,14 @@ clean_screen_loop:
                 movem.l  d1-d7/a1, -(a0)             ; move one longword to screen
                 dbf     d0, clean_screen_loop
 
+                move.l #megascrl_sinwave, _megascrl_sinwave_index    ; init the sinwave index of the megascroller
+                move.l #megascrl_sinwave + MEGASCRL_TABLE_SIZE, megascrl_sinwave_last  ; last index of the sinwave 
+
+                jsr _asm_rotate_small_sprites      ; rotate the small sprites
+
                 jsr _asm_cook_small_sprites     ; cook the small sprites
 
                 jsr _asm_scroll_init            ; Init scroll variables
-
-                bsr tuneinit    ; Init the music
-
-                jsr _asm_init_tiles             ; Init tiles
 
                 jsr _asm_textroll_init              ; Init text roll
 
@@ -142,7 +167,14 @@ clean_screen_loop:
                 ; ST and the restore_state routine restores it. It expects the 
                 ; addresses of the vblank and timer B routines in a1 and a2 respectively.
                 bsr _asm_setup_vblank
+
+                bsr tuneconfig                  ; Preload the different tunes
+
+                move.w chiptune, d0
+                bsr tuneinit                    ; Init the music
+
                 bsr _asm_save_state             ; save the current state of the interrupts and screen
+
 
 main_loop:
 
@@ -160,6 +192,7 @@ change_screen_buffers:
                 tst.w exit_program
                 bne exit
 
+                move.w chiptune, d0
                 bsr tuneinter               ; play the music
 
                 IIF _DEBUG move.w  #$000, $ff8240
@@ -172,11 +205,14 @@ change_screen_buffers:
 
                 jsr _asm_restore_all_sprites        ; restore all sprites
 
+                jsr _asm_clean_big_sprite
+
 ; The screen scroll should be done when all the sprites are restored
-                jsr _asm_draw_uridium
+                jsr _asm_draw_slice
+
 ; After the screen scroll, it's time to draw all the sprites
 
-                jsr _asm_display_big_sprite         ; display the big sprite
+                 jsr _asm_display_big_sprite         ; display the big sprite
 
                 jsr _asm_show_all_sprites           ; show all sprites
 
@@ -188,28 +224,63 @@ change_screen_buffers:
 ;
                 IIF _DEBUG move.w  #$500, $ff8240
 ; Test keys
-                cmp.b #$0A, $fffc02
-                bne.s check_key0
-                cmp.w #$F, skew
-                beq.s check_key0
-                addq #1, skew
+                move.b $fffc02, d7          ; read keyboard input
+
+                cmp.b #$02, d7
+                bne.s check_key2
+                move.w chiptune, d0
+                tst.w d0
+                beq.s main_loop            ; if the same tune is playing, don't do anything
+                bsr tunedeinit
+                move.w #0, d0
+                move.w d0, chiptune
+                bsr tuneinit
+                bra main_loop
+check_key2:
+                cmp.b #$03, d7
+                bne.s check_key7
+                move.w chiptune, d0
+                cmp.w #1, d0
+                beq main_loop            ; if the same tune is playing, don't do anything
+                bsr tunedeinit
+                move.w #1, d0
+                move.w d0, chiptune
+                bsr tuneinit
+                bra main_loop
+
+check_key7:
+                cmp.b #$08, d7                      ; Key 7 pressed?
+                bne.s check_key8
+                move.w #1, _scroll_speed            ; Set scroll speed to 1
+                bra main_loop
+
+check_key8:
+                cmp.b #$09, d7                      ; Key 8 pressed?
+                bne.s check_key9
+                move.w #2, _scroll_speed            ; Set scroll speed to 2
+                bra main_loop
+
+check_key9:
+                cmp.b #$0A, d7                      ; Key 9 pressed?
+                bne.s check_key0        
+                move.w #4, _scroll_speed            ; Set scroll speed to 4
+                bra main_loop
 
 check_key0:
-                cmp.b    #$0B, $fffc02            ; Key 0 pressed?
-                bne.b    check_escape               ; Check next key
-                cmp.w #$0, skew
-                beq.s check_escape
-                subq #1, skew                   ; decrease the skew
-
+                cmp.b    #$0B, d7                   ; Key 0 pressed?
+                bne.b    check_escape               
+                move.w #8, _scroll_speed            ; Set scroll speed to 8
+                bra main_loop
 check_escape:
-                cmp.b    #$01, $fffc02            ; ESC pressed?
-                bne      main_loop    ; if not, repeat main
+                cmp.b    #$01, d7                   ; ESC pressed?
+                bne      main_loop                  ; if not, repeat main
                 move.w #1, exit_program
                 bra main_loop                
 
 exit:
-                bsr tunedeinit  ; Deinit the music
                 bsr _asm_restore_state
+                move.w chiptune, d0
+                bsr tunedeinit  ; Deinit the music
 
                 movem.l (a7)+, d0-d7/a0-a6
                 rts
@@ -218,12 +289,13 @@ exit:
 _screen_base_ptr        dc.l   0
 screen_buffer_index     
                         REPT   _BUFFER_NUMBERS
-                        dc.l   REPTN * _SCREEN_SIZE
+                        dc.l   REPTN * _SCREEN_PHYS_SIZE
                         ENDR
 _current_screen_mask    dc.w   0
 _screen_dither_tiktok   dc.w   0
 _screen_next            dc.l   0
 _screen_visible         dc.l   0
+_screen_phys_next       dc.l   0
 _screen_pixel_offset    dc.b   0
                         dc.b   0                      ; padding
 _screen_absolute_offset dc.b   0
@@ -233,13 +305,20 @@ _sprite_x               dc.w   8
 _sprite_y               dc.w   8
 _sprite_text_x          dc.w   8
 _sprite_text_y          dc.w   8
-skew                    dc.w   15
-exit_program            dc.w   0    
+_scroll_speed           dc.w   1
+_scroll_speed_effective dc.w   1
+exit_program            dc.w   0
+chiptune                dc.w   0    
 
 print_scroll_8_byte_str: dc.b   'BYTE COPY',0
 print_scroll_8_movep_str: dc.b  'MOVEP    ',0
 print_scroll_8_blitter_str: dc.b  'BLITTER  ',0
 print_debug_text_str: dc.b   'THIS IS A DEBUG TEST',0
 
-                section bss align 2
+                EVEN ; align to even address
 
+                include src/megascrl.inc    ; The texroll trigonometric tables
+
+                section bss align 2
+_megascrl_sinwave_index: ds.l 1
+megascrl_sinwave_last: ds.l 1
