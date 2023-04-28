@@ -4,7 +4,8 @@
     XDEF    _asm_rotate_small_sprites
     XREF    _screen_phys_next
     XREF    _font_small_ready
-
+    XREF    _scroll_speed
+    XREF    _scroll_speed_effective
     XREF    _asm_nf_debugger
 
 NUMBER_OF_CHARS         equ 40     ; Number of characters in the font
@@ -133,7 +134,7 @@ init_tiles:
                     move.l a1, DEST_ADDR(a6) ; destination address
                     move.b #$0, BLITTER_OPERATION(a6) ; blitter operation. Copy src to dest, replace copy.
                     move.w #MEGA_PIXEL_HEIGHT_NOT_VISIBLE, BLOCK_Y_COUNT(a6) ; block Y count. This one must be reinitialized every bitplane
-                    BLIT_MODE
+                    HOG_MODE
                     add.w #_SCREEN_WIDTH_BYTES * MEGA_PIXEL_HEIGHT_NOT_VISIBLE, a1
 
                     move.l a1, DEST_ADDR(a6) ; destination address
@@ -156,14 +157,35 @@ init_tiles:
 _asm_draw_slice:
 ;                    IIF _DEBUG jsr _asm_nf_debugger
                     move.w tiles_pixel_offset, d0
-                    addq #_SCROLL_BACKGROUND_SPEED, d0
+                    move.w _scroll_speed_effective, d1
+                    add.w d1, d0
                     and.w #15, d0
                     move.w d0, tiles_pixel_offset
-                    IIF _SCROLL_BACKGROUND_SPEED == 1 lsr.w #1,d0
-                    IIF _SCROLL_BACKGROUND_SPEED == 2 lsr.w #2,d0
-                    IIF _SCROLL_BACKGROUND_SPEED == 4 lsr.w #3,d0
-                    IIF _SCROLL_BACKGROUND_SPEED == 8 lsr.w #4,d0
-                    IIF _SCROLL_BACKGROUND_SPEED == 16 lsr.w #5,d0
+                    bne.s .not_update_scroll_speed
+
+                    move.w _scroll_speed, _scroll_speed_effective   ; Update the effective scroll speed when the scroll offset is 0
+
+.not_update_scroll_speed:
+                    cmp.w #16, d1
+                    bne.s .test_8
+                    lsr.w #5, d0
+                    beq.s .repaint_slice_tiles
+                    rts
+.test_8:
+                    cmp.w #8, d1
+                    bne.s .test_4
+                    lsr.w #4, d0
+                    beq.s .repaint_slice_tiles
+                    rts
+
+.test_4:
+                    cmp.w #4, d1
+                    bne.s .test_2
+                    lsr.w #3, d0
+                    beq.s .repaint_slice_tiles
+                    rts
+
+.test_2:            lsr.w d1, d0
                     beq.s .repaint_slice_tiles
                     rts
 
@@ -297,7 +319,17 @@ ascii_index:                                                   ; Index table to 
                 dc.b 17, 18, 19, 20, 21, 22, 23, 24, 25        ; R, S, T, U, V, W, X, Y, Z
 
 text:
-                dc.b "THIS IS A TEST OF THE TEXT ROLLING SYSTEM", 0
+                dc.b "HELLO BITCHES. COMING FROM THE PAST HERE IS THE . SILLY DEMO ."
+                dc.b "    THIS IS A RIDICULOUS EXAMPLE OF HOW A MIDDLE AGE MAN FACES HIS MIDLIFE CRISIS."
+                dc.b "    INSTEAD OF BUYING A CONVERTIBLE I DECIDED TO DEVELOP A NEW INTRO DEMO."
+                dc.b "     YES I AM A LOSER     "
+                dc.b "    THE SILLY DEMO IS A SIMPLE DEMO JUST TO REFRESH MY M68K CODING SKILLS AND "
+                dc.b "WASTE TIME DOING USELESS STUFF THAT NOBODY CARES EXCEPT GROWN UP INCELS OVER 50."
+                dc.b "NOW THE CREDITS: THANK YOU VERY MUCH TO @ESTRAYK FOR THE CHIPTUNES, THEY ROCK    "
+                dc.b "THE BOUNCING LARGE LOGO WAS MADE IN 1990 BY RED DEVIL AKA @ANTOR   "
+                dc.b "ALSO THANK YOU TO ALL THE RETRO CODERS I BLUNTLY STOLE THEIR CODE TO DEVELOP THIS SHIT    "
+                dc.b "STILL READING THIS? OK YOU CAN FOLLOW ME ON TWITTER @SOYPARRILLA    "
+                dc.b "BYE BYE BITCHES           ", 0
 
                 section bss
 tiles_pixel_offset:
